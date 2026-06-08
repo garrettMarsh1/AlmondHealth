@@ -5,10 +5,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from practicebridge import store  # noqa: E402
-from practicebridge.connectors.registry import connector_for  # noqa: E402
-from practicebridge.models import AppointmentCreate, LeadCreate, PatientCreate  # noqa: E402
-from practicebridge.pdf import render_form_pdf  # noqa: E402
+from almond import store  # noqa: E402
+from almond.connectors.registry import connector_for  # noqa: E402
+from almond.models import AppointmentCreate, LeadCreate, PatientCreate  # noqa: E402
+from almond.pdf import render_form_pdf  # noqa: E402
 
 
 def main():
@@ -41,8 +41,8 @@ def main():
 
     answers = {"Full name": "Jordan Rivera", "Date of birth": "1988-09-03",
                "Chief complaint": "cleaning + exam", "Consent to treat": "signed 2026-06-08"}
-    pdf = render_form_pdf("New Patient Intake — PracticeBridge", [f"{k}: {v}" for k, v in answers.items()])
-    doc = c.upload_document(pat.id, pdf, "Intake Form (PracticeBridge POC)")
+    pdf = render_form_pdf("New Patient Intake — Almond", [f"{k}: {v}" for k, v in answers.items()])
+    doc = c.upload_document(pat.id, pdf, "Intake Form (Almond POC)")
     sub.document_id = doc.id
     sub.status = "in_chart"
     print(f"[5] patient submitted -> PDF -> CHART: DocNum={doc.id}  form status={sub.status}")

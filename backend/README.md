@@ -1,4 +1,4 @@
-# PracticeBridge — Backend (Open Dental POC)
+# Almond — Backend (Open Dental POC)
 
 The canonical front-office API over dental PMS connectors. The frontend talks only to
 this `/v1` API; each PMS is a connector behind one interface. POC runs live against
@@ -20,7 +20,7 @@ cd backend
 cp .env.example .env            # defaults to Open Dental's public sandbox key
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/python scripts/poc_demo.py            # full loop through the connector, live sandbox
-PYTHONPATH=src .venv/bin/uvicorn practicebridge.api:app --port 8088   # the /v1 API
+PYTHONPATH=src .venv/bin/uvicorn almond.api:app --port 8088   # the /v1 API
 ```
 
 ## /v1 endpoints

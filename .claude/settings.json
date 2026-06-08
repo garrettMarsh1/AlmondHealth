@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run dev)",
+      "Bash(npm run build)",
+      "Bash(npx vite build)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(PYTHONPATH=src .venv/bin/python scripts/smoke.py)",
+      "Bash(PYTHONPATH=src .venv/bin/python scripts/poc_demo.py)",
+      "Bash(curl -s localhost:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Read(./**)"
+    ],
+    "deny": [
+      "Read(./backend/.env)",
+      "Read(./**/.env)"
+    ]
+  }
+}

@@ -17,7 +17,7 @@ export default function Login({ onSuccess }) {
     setError(null);
     try {
       const res = await api.login(email, password);
-      toast({ tone: "success", title: `Welcome back, ${res.user?.name || "there"}`, desc: "Signed in to PracticeBridge", icon: "checkCircle" });
+      toast({ tone: "success", title: `Welcome back, ${res.user?.name || "there"}`, desc: "Signed in to Almond", icon: "checkCircle" });
       onSuccess(res.user, res.token);
     } catch {
       setError("That email and password don't match. Try the demo credentials below.");
@@ -29,9 +29,9 @@ export default function Login({ onSuccess }) {
     <div className="auth-screen" style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "var(--page)" }}>
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div className="auth-brand" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, marginBottom: 24 }}>
-          <span className="nav-logo" style={{ width: 48, height: 48, borderRadius: 13, fontSize: 24 }}>P</span>
+          <span className="nav-logo" style={{ width: 48, height: 48, borderRadius: 13, fontSize: 24 }}>A</span>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em" }}>PracticeBridge</div>
+            <div style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em" }}>Almond</div>
             <div className="muted" style={{ fontSize: 14, marginTop: 4 }}>Private AI-powered front office</div>
           </div>
         </div>

@@ -50,7 +50,7 @@ export default function Reports() {
         <div className="page-head page-head-row">
           <div>
             <h1>Reports &amp; ROI</h1>
-            <div className="ph-sub">What PracticeBridge brought in — for Dr. Patel. {data ? data.range : RANGES[range]}.</div>
+            <div className="ph-sub">What Almond brought in — for Dr. Patel. {data ? data.range : RANGES[range]}.</div>
           </div>
           <div className="row">
             <Segmented value={range} onChange={setRange} options={[{ value: "7", label: "7d" }, { value: "30", label: "30d" }, { value: "90", label: "90d" }]} />

@@ -4,7 +4,7 @@ import sys
 
 from fastapi.testclient import TestClient
 
-from practicebridge.api import app
+from almond.api import app
 
 c = TestClient(app)
 

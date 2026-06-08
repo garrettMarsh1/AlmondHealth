@@ -30,7 +30,7 @@ function ConnectModal({ conn, onClose, onConnected }) {
         <>
           <div className="alert alert-info" style={{ marginBottom: 18 }}>
             <Icon name="shield" className="ic" />
-            <div>PracticeBridge connects through {conn.name}'s official, sanctioned interface. We never touch your server directly, and you can disconnect anytime.</div>
+            <div>Almond connects through {conn.name}'s official, sanctioned interface. We never touch your server directly, and you can disconnect anytime.</div>
           </div>
           <div className="stack" style={{ gap: 14 }}>
             <div className="field"><label className="label">Developer key</label><input className="input mono" placeholder="•••• •••• •••• 4821" /><span className="hint">Find this in {conn.name} → Setup → API. We'll walk you through it.</span></div>
@@ -62,7 +62,7 @@ function ConnectionsTab() {
   return (
     <>
       <div className="stack">
-        <div className="alert alert-ok"><Icon name="checkCircle" className="ic" /><div><strong>You're connected to Open Dental.</strong> Everything PracticeBridge saves shows up in your chart automatically.</div></div>
+        <div className="alert alert-ok"><Icon name="checkCircle" className="ic" /><div><strong>You're connected to Open Dental.</strong> Everything Almond saves shows up in your chart automatically.</div></div>
         {conns.map((c) => (
           <div className="conn-card" key={c.name}>
             <span className="conn-logo" style={{ background: (PMS_COLOR[c.name] || "#888") + "18", color: PMS_COLOR[c.name] || "#888" }}>{c.name[0]}</span>

@@ -1,5 +1,5 @@
 /* ============================================================
-   PracticeBridge — App shell & screen layouts
+   Almond — App shell & screen layouts
    ============================================================ */
 
 .app { display: flex; min-height: 100vh; background: var(--page); }

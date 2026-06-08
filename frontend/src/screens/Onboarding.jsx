@@ -54,7 +54,7 @@ export default function Onboarding() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--page)", display: "flex", flexDirection: "column" }}>
       <header className="row between" style={{ padding: "18px 28px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
-        <div className="row" style={{ gap: 11 }}><span className="nav-logo">P</span><strong style={{ fontSize: 16 }}>PracticeBridge</strong></div>
+        <div className="row" style={{ gap: 11 }}><span className="nav-logo">P</span><strong style={{ fontSize: 16 }}>Almond</strong></div>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate("today")}>Skip setup<Icon name="chevR" size={14} /></button>
       </header>
 
@@ -73,7 +73,7 @@ export default function Onboarding() {
             {step === 0 && (
               <>
                 <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.02em" }}>Connect your record system</h1>
-                <p className="muted" style={{ fontSize: 15, marginTop: 6, marginBottom: 24 }}>This is the one that matters. Once connected, everything PracticeBridge does shows up in your existing chart — automatically.</p>
+                <p className="muted" style={{ fontSize: 15, marginTop: 6, marginBottom: 24 }}>This is the one that matters. Once connected, everything Almond does shows up in your existing chart — automatically.</p>
                 {connErr ? (
                   <ErrorState title="Couldn’t load record systems" onRetry={loadConnectors} />
                 ) : connectors === null ? (
@@ -171,7 +171,7 @@ export default function Onboarding() {
               <Button variant="ghost" icon="chevL" onClick={() => (step > 0 ? setStep(step - 1) : navigate("today"))} disabled={step === 0}>Back</Button>
               <div className="row" style={{ gap: 10 }}>
                 <span className="muted" style={{ fontSize: 13 }}>Step {step + 1} of 4</span>
-                <Button variant="primary" iconRight={step === 3 ? "check" : "arrowRight"} onClick={next} disabled={step === 0 && !pmsConnected}>{step === 3 ? "Finish & open PracticeBridge" : "Continue"}</Button>
+                <Button variant="primary" iconRight={step === 3 ? "check" : "arrowRight"} onClick={next} disabled={step === 0 && !pmsConnected}>{step === 3 ? "Finish & open Almond" : "Continue"}</Button>
               </div>
             </div>
           </div>

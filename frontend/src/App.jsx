@@ -47,7 +47,7 @@ const OWNER = {
 const TITLES = {
   today: "Today", leads: "Leads & calls", scheduler: "Scheduler", messages: "Messages",
   forms: "Forms", sendform: "Send a form", patient: "Patient timeline",
-  reports: "Reports & ROI", settings: "Settings", onboarding: "Set up PracticeBridge",
+  reports: "Reports & ROI", settings: "Settings", onboarding: "Set up Almond",
 };
 
 const SCREENS = {
@@ -114,8 +114,8 @@ function Shell({ user, onSignOut }) {
       <div className="app">
         <nav className="nav">
           <div className="nav-brand">
-            <span className="nav-logo">P</span>
-            <div><div className="nb-name">PracticeBridge</div><div className="nb-sub">{DATA.practice.name}</div></div>
+            <span className="nav-logo">A</span>
+            <div><div className="nb-name">Almond</div><div className="nb-sub">{DATA.practice.name}</div></div>
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {nav.map((sec) => (

@@ -1,9 +1,9 @@
-# PracticeBridge API Contract (v1) — FROZEN
+# Almond API Contract (v1) — FROZEN
 
-This document is the frozen contract for the PracticeBridge backend `/v1` API. All
+This document is the frozen contract for the Almond backend `/v1` API. All
 paths are prefixed with `/v1` unless noted (the public patient pages use `/v1/p`).
 `api.py` is frozen: it only assembles routers. Feature agents implement ONLY their own
-router file in `src/practicebridge/routers/` and must match the shapes below exactly.
+router file in `src/almond/routers/` and must match the shapes below exactly.
 
 Conventions:
 - JSON request/response bodies.
@@ -343,7 +343,7 @@ Marks the submission `completed`; if the submission has a `patient_id`, renders 
 
 ---
 
-## Store API available to routers (src/practicebridge/store.py)
+## Store API available to routers (src/almond/store.py)
 
 Existing (used by core, do not change signatures):
 `seed()`, `create_lead(LeadCreate)`, `list_leads()`, `get_lead(id)`,
@@ -365,13 +365,13 @@ Added:
 - Tokens: `store_token(token, user_id)`, `user_for_token(token)`.
 - Audit: `append_audit(who, action, target=, when=, sync=)`, `list_audit()`.
 
-## Notify API (src/practicebridge/notify.py)
+## Notify API (src/almond/notify.py)
 - `twilio_configured() -> bool`
 - `send_sms(to, body) -> { ok, status, to, body, provider, ... }`. With no Twilio env
   vars (`PB_TWILIO_SID`/`PB_TWILIO_TOKEN`/`PB_TWILIO_FROM`) it returns
   `status:"recorded"` and never raises.
 
-## Persistence (src/practicebridge/db.py)
-SQLite (stdlib `sqlite3`) at `backend/practicebridge.db`. `db.connect()` returns a
+## Persistence (src/almond/db.py)
+SQLite (stdlib `sqlite3`) at `backend/almond.db`. `db.connect()` returns a
 `Row`-factory connection; `db.init()` creates tables: `leads`, `form_templates`,
 `form_submissions`, `conversations`, `messages`, `users`, `audit_log`, `auth_tokens`.
