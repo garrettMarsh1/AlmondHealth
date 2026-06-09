@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 
 from . import store
-from .models import LoginRequest, User
+from .entitlements import entitlements_for
+from .models import Account, LoginRequest, User
 
 router = APIRouter()
 
@@ -18,6 +19,13 @@ def ensure_seed_token() -> None:
         store.store_token(SEED_TOKEN, user.id)
 
 
+def _account_envelope(account: Account | None) -> dict | None:
+    if account is None:
+        return None
+    return {"id": account.id, "name": account.name, "plan": account.plan,
+            "location_count": account.location_count}
+
+
 @router.post("/v1/auth/login")
 def login(data: LoginRequest):
     user = store.verify_credentials(data.email, data.password)
@@ -25,7 +33,13 @@ def login(data: LoginRequest):
         raise HTTPException(401, "invalid credentials")
     token = f"pb_{secrets.token_urlsafe(24)}"
     store.store_token(token, user.id)
-    return {"token": token, "user": user}
+    account = store.account_for_user(user.id)
+    return {
+        "token": token,
+        "user": user,
+        "account": _account_envelope(account),
+        "entitlements": entitlements_for(account) if account else None,
+    }
 
 
 def current_user(authorization: str | None = Header(default=None)) -> User:
@@ -46,11 +60,11 @@ def optional_user(authorization: str | None = Header(default=None)) -> User | No
 
 
 def require_role(*roles: str):
-    def dependency(user: User = None) -> User:
-        if user is None:
-            raise HTTPException(401, "authentication required")
-        if roles and user.role not in roles:
-            raise HTTPException(403, "insufficient role")
+    def dependency(user: User = Depends(current_user)) -> User:
+        if roles:
+            current = (user.role or "").lower()
+            if not any(role.lower() in current for role in roles):
+                raise HTTPException(403, "insufficient role")
         return user
 
     return dependency

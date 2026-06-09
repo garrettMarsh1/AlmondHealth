@@ -5,7 +5,9 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from . import db
+from .config import settings
 from .models import (
+    Account,
     AuditEntry,
     Conversation,
     FormSubmission,
@@ -13,7 +15,9 @@ from .models import (
     Lead,
     LeadCreate,
     Message,
+    ReviewRequest,
     User,
+    WaitlistEntry,
 )
 
 
@@ -78,12 +82,16 @@ def seed() -> None:
     conn = db.connect()
     try:
         _ensure_submission_created_at(conn)
+        _ensure_users_account_id(conn)
         _seed_templates(conn)
         _seed_leads(conn)
         _seed_history(conn)
         _seed_users(conn)
+        _seed_account(conn)
         _seed_conversations(conn)
         _seed_audit(conn)
+        _seed_waitlist(conn)
+        _seed_reviews(conn)
         conn.commit()
     finally:
         conn.close()
@@ -702,5 +710,253 @@ def list_audit() -> list[AuditEntry]:
     conn = db.connect()
     try:
         return [_row_to_audit(r) for r in conn.execute("SELECT * FROM audit_log ORDER BY id DESC").fetchall()]
+    finally:
+        conn.close()
+
+
+_DEFAULT_ACCOUNT_ID = "acct_demo"
+
+
+def _row_to_account(r) -> Account:
+    return Account(
+        id=r["id"], name=r["name"], plan=r["plan"], location_count=r["location_count"],
+        stripe_customer_id=r["stripe_customer_id"], status=r["status"],
+    )
+
+
+def _row_to_waitlist(r) -> WaitlistEntry:
+    return WaitlistEntry(
+        id=r["id"], account_id=r["account_id"], name=r["name"], phone=r["phone"],
+        reason=r["reason"], status=r["status"], created_at=r["created_at"],
+        notified_at=r["notified_at"],
+    )
+
+
+def _row_to_review(r) -> ReviewRequest:
+    return ReviewRequest(
+        id=r["id"], account_id=r["account_id"], name=r["name"], phone=r["phone"],
+        patient_id=r["patient_id"], status=r["status"], created_at=r["created_at"],
+    )
+
+
+def _ensure_users_account_id(conn) -> None:
+    columns = {r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
+    if "account_id" not in columns:
+        conn.execute("ALTER TABLE users ADD COLUMN account_id TEXT")
+
+
+def _seed_account(conn) -> None:
+    if conn.execute("SELECT COUNT(*) c FROM accounts").fetchone()["c"]:
+        return
+    conn.execute(
+        "INSERT INTO accounts (id, name, plan, location_count, status) VALUES (?, ?, 'core', 1, 'active')",
+        (_DEFAULT_ACCOUNT_ID, settings.practice_name),
+    )
+    conn.execute("UPDATE users SET account_id = ? WHERE account_id IS NULL", (_DEFAULT_ACCOUNT_ID,))
+
+
+def _seed_waitlist(conn) -> None:
+    if conn.execute("SELECT COUNT(*) c FROM waitlist_entries").fetchone()["c"]:
+        return
+    entries = [
+        ("Hannah Brooks", "(512) 555-0211", "Cleaning, flexible mornings"),
+        ("Diego Ramirez", "(512) 555-0233", "Crown follow-up"),
+        ("Aisha Khan", "(512) 555-0247", "New patient exam"),
+        ("Brandon Cole", "(512) 555-0259", "Whitening consult"),
+    ]
+    for name, phone, reason in entries:
+        conn.execute(
+            "INSERT INTO waitlist_entries (id, account_id, name, phone, reason, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, 'active', ?)",
+            (_new_id("wl"), _DEFAULT_ACCOUNT_ID, name, phone, reason, _now()),
+        )
+
+
+def _seed_reviews(conn) -> None:
+    if conn.execute("SELECT COUNT(*) c FROM review_requests").fetchone()["c"]:
+        return
+    reqs = [
+        ("Grace Okafor", "(512) 555-0134", "recorded"),
+        ("Kevin Liu", "(512) 555-0155", "recorded"),
+        ("Sofia Martens", "(512) 555-0167", "recorded"),
+    ]
+    for name, phone, status in reqs:
+        conn.execute(
+            "INSERT INTO review_requests (id, account_id, name, phone, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (_new_id("rev"), _DEFAULT_ACCOUNT_ID, name, phone, status, _now()),
+        )
+
+
+def get_default_account() -> Account | None:
+    return get_account(_DEFAULT_ACCOUNT_ID)
+
+
+def get_account(account_id: str) -> Account | None:
+    conn = db.connect()
+    try:
+        r = conn.execute("SELECT * FROM accounts WHERE id = ?", (account_id,)).fetchone()
+        return _row_to_account(r) if r else None
+    finally:
+        conn.close()
+
+
+def account_for_user(user_id: str) -> Account | None:
+    conn = db.connect()
+    try:
+        r = conn.execute("SELECT account_id FROM users WHERE id = ?", (user_id,)).fetchone()
+        account_id = r["account_id"] if r and r["account_id"] else _DEFAULT_ACCOUNT_ID
+    finally:
+        conn.close()
+    return get_account(account_id)
+
+
+def set_plan(account_id: str, plan: str) -> Account | None:
+    conn = db.connect()
+    try:
+        conn.execute("UPDATE accounts SET plan = ? WHERE id = ?", (plan, account_id))
+        conn.commit()
+    finally:
+        conn.close()
+    return get_account(account_id)
+
+
+def find_account_by_stripe_customer(customer_id: str) -> Account | None:
+    conn = db.connect()
+    try:
+        r = conn.execute("SELECT * FROM accounts WHERE stripe_customer_id = ?", (customer_id,)).fetchone()
+        return _row_to_account(r) if r else None
+    finally:
+        conn.close()
+
+
+def current_period() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m")
+
+
+def record_usage(account_id: str, meter: str, qty: float, location_id: str = "loc_1") -> None:
+    period = current_period()
+    conn = db.connect()
+    try:
+        conn.execute(
+            "INSERT INTO usage_events (id, account_id, location_id, meter, qty, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (_new_id("use"), account_id, location_id, meter, qty, _now()),
+        )
+        conn.execute(
+            "INSERT INTO usage_counters (account_id, location_id, meter, period, used) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(account_id, location_id, meter, period) "
+            "DO UPDATE SET used = used + excluded.used",
+            (account_id, location_id, meter, period, qty),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def usage_for(account_id: str, period: str) -> dict:
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT meter, SUM(used) total FROM usage_counters "
+            "WHERE account_id = ? AND period = ? GROUP BY meter",
+            (account_id, period),
+        ).fetchall()
+        return {r["meter"]: r["total"] or 0 for r in rows}
+    finally:
+        conn.close()
+
+
+def list_waitlist(account_id: str) -> list[WaitlistEntry]:
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM waitlist_entries WHERE account_id = ? ORDER BY created_at ASC, id ASC",
+            (account_id,),
+        ).fetchall()
+        return [_row_to_waitlist(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_waitlist(account_id: str, name: str, phone: str | None = None,
+                 reason: str | None = None) -> WaitlistEntry:
+    entry_id = _new_id("wl")
+    conn = db.connect()
+    try:
+        conn.execute(
+            "INSERT INTO waitlist_entries (id, account_id, name, phone, reason, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, 'active', ?)",
+            (entry_id, account_id, name, phone, reason, _now()),
+        )
+        conn.commit()
+        return _row_to_waitlist(conn.execute("SELECT * FROM waitlist_entries WHERE id = ?", (entry_id,)).fetchone())
+    finally:
+        conn.close()
+
+
+def remove_waitlist(account_id: str, entry_id: str) -> None:
+    conn = db.connect()
+    try:
+        conn.execute("DELETE FROM waitlist_entries WHERE id = ? AND account_id = ?", (entry_id, account_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def mark_waitlist_notified(account_id: str, entry_ids: list[str]) -> None:
+    if not entry_ids:
+        return
+    when = _now()
+    conn = db.connect()
+    try:
+        for entry_id in entry_ids:
+            conn.execute(
+                "UPDATE waitlist_entries SET status = 'notified', notified_at = ? WHERE id = ? AND account_id = ?",
+                (when, entry_id, account_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def list_review_requests(account_id: str) -> list[ReviewRequest]:
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM review_requests WHERE account_id = ? ORDER BY created_at DESC, id DESC",
+            (account_id,),
+        ).fetchall()
+        return [_row_to_review(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def add_review_request(account_id: str, name: str, phone: str | None = None,
+                       patient_id: str | None = None, status: str = "sent") -> ReviewRequest:
+    req_id = _new_id("rev")
+    conn = db.connect()
+    try:
+        conn.execute(
+            "INSERT INTO review_requests (id, account_id, name, phone, patient_id, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (req_id, account_id, name, phone, patient_id, status, _now()),
+        )
+        conn.commit()
+        return _row_to_review(conn.execute("SELECT * FROM review_requests WHERE id = ?", (req_id,)).fetchone())
+    finally:
+        conn.close()
+
+
+def processed_stripe_event(event_id: str) -> bool:
+    conn = db.connect()
+    try:
+        existing = conn.execute("SELECT 1 FROM stripe_events WHERE id = ?", (event_id,)).fetchone()
+        if existing:
+            return True
+        conn.execute("INSERT INTO stripe_events (id, created_at) VALUES (?, ?)", (event_id, _now()))
+        conn.commit()
+        return False
     finally:
         conn.close()

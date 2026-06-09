@@ -177,3 +177,52 @@ class AuditEntry(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class Account(BaseModel):
+    id: str
+    name: str
+    plan: str = "core"
+    location_count: int = 1
+    stripe_customer_id: str | None = None
+    status: str = "active"
+
+
+class Subscription(BaseModel):
+    id: str
+    account_id: str
+    stripe_subscription_id: str | None = None
+    plan: str
+    status: str = "active"
+    period_start: str | None = None
+    period_end: str | None = None
+
+
+class UsageEvent(BaseModel):
+    id: str
+    account_id: str
+    location_id: str = "loc_1"
+    meter: str
+    qty: float = 0.0
+    created_at: str | None = None
+
+
+class WaitlistEntry(BaseModel):
+    id: str
+    account_id: str
+    name: str
+    phone: str | None = None
+    reason: str | None = None
+    status: str = "active"
+    created_at: str | None = None
+    notified_at: str | None = None
+
+
+class ReviewRequest(BaseModel):
+    id: str
+    account_id: str
+    name: str
+    phone: str | None = None
+    patient_id: str | None = None
+    status: str = "sent"
+    created_at: str | None = None

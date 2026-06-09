@@ -81,6 +81,69 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     token TEXT PRIMARY KEY,
     user_id TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS accounts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    plan TEXT NOT NULL DEFAULT 'core',
+    location_count INTEGER NOT NULL DEFAULT 1,
+    stripe_customer_id TEXT,
+    status TEXT NOT NULL DEFAULT 'active'
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    stripe_subscription_id TEXT,
+    plan TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    period_start TEXT,
+    period_end TEXT
+);
+
+CREATE TABLE IF NOT EXISTS usage_events (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    location_id TEXT NOT NULL DEFAULT 'loc_1',
+    meter TEXT NOT NULL,
+    qty REAL NOT NULL DEFAULT 0,
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS usage_counters (
+    account_id TEXT NOT NULL,
+    location_id TEXT NOT NULL DEFAULT 'loc_1',
+    meter TEXT NOT NULL,
+    period TEXT NOT NULL,
+    used REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (account_id, location_id, meter, period)
+);
+
+CREATE TABLE IF NOT EXISTS waitlist_entries (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT,
+    reason TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT,
+    notified_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS review_requests (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone TEXT,
+    patient_id TEXT,
+    status TEXT NOT NULL DEFAULT 'sent',
+    created_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS stripe_events (
+    id TEXT PRIMARY KEY,
+    created_at TEXT
+);
 """
 
 

@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     practice_name: str = "Bright Smile Dental"
     practice_location: str = "Austin, TX"
     practice_phone: str = "(512) 555-0148"
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_price_core: str | None = None
+    stripe_price_pro: str | None = None
+    stripe_price_practice_plus: str | None = None
+    review_link: str = "https://g.page/r/demo-review"
 
 
 settings = Settings()
