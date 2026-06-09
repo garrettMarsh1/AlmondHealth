@@ -119,6 +119,57 @@ if patient_id:
         f"events={len(timeline['events']) if isinstance(timeline, dict) and isinstance(timeline.get('events'), list) else 'n/a'}",
     )
 
+H = {"Authorization": "Bearer pb_demo_token"}
+
+login = check("POST /v1/auth/login", c.post("/v1/auth/login", json={"email": "dana@brightsmile.co", "password": "demo1234"}))
+assert_true(
+    "login.account_plan_core",
+    isinstance(login, dict) and isinstance(login.get("account"), dict) and login["account"].get("plan") == "core",
+    str(login.get("account") if isinstance(login, dict) else None),
+)
+assert_true(
+    "login.entitlements_envelope",
+    isinstance(login, dict) and isinstance(login.get("entitlements"), dict) and "quotas" in login["entitlements"],
+)
+
+bplan = check("GET /v1/billing/plan", c.get("/v1/billing/plan", headers=H))
+assert_true(
+    "billing.plan_core_no_stripe",
+    isinstance(bplan, dict) and bplan.get("plan") == "core" and bplan.get("stripe_configured") is False,
+    str(bplan.get("plan") if isinstance(bplan, dict) else None),
+)
+
+bplans = check("GET /v1/billing/plans", c.get("/v1/billing/plans", headers=H))
+prices = {p["plan"]: p["price_monthly"] for p in bplans} if isinstance(bplans, list) else {}
+assert_true("billing.plans_prices", prices == {"core": 199, "pro": 349, "practice_plus": 599}, str(prices))
+
+fill_core = c.post("/v1/waitlist/fill", headers=H, json={"date_start": "2026-06-10", "date_end": "2026-06-12"})
+assert_true("waitlist.fill_gated_on_core", fill_core.status_code == 402, f"status={fill_core.status_code}")
+
+setpro = check("POST /v1/billing/dev/set-plan(pro)", c.post("/v1/billing/dev/set-plan", headers=H, json={"plan": "pro"}))
+assert_true("billing.upgraded_to_pro", isinstance(setpro, dict) and setpro.get("plan") == "pro", str(setpro))
+
+review = check("POST /v1/reviews/request", c.post("/v1/reviews/request", headers=H, json={"name": "Smoke Review", "phone": "(512) 555-0900"}))
+assert_true("reviews.request_ok_on_pro", isinstance(review, dict) and bool(review.get("id")), str(review))
+
+usage = check("GET /v1/usage", c.get("/v1/usage", headers=H))
+sms_used = 0
+if isinstance(usage, dict):
+    for meter in usage.get("meters", []):
+        if meter.get("key") == "sms_segments":
+            sms_used = meter.get("used", 0)
+assert_true("usage.sms_metered_after_campaign", sms_used >= 1, f"used={sms_used}")
+
+adv = c.get("/v1/analytics/advanced", headers=H)
+assert_true("analytics.advanced_ok_on_pro", adv.status_code == 200, f"status={adv.status_code}")
+
+fill_pro = c.post("/v1/waitlist/fill", headers=H, json={"date_start": "2026-06-10", "date_end": "2026-06-12"})
+assert_true("waitlist.fill_not_plan_gated_on_pro", fill_pro.status_code != 402, f"status={fill_pro.status_code}")
+
+c.post("/v1/billing/dev/set-plan", headers=H, json={"plan": "core"})
+review_core = c.post("/v1/reviews/request", headers=H, json={"name": "X", "phone": "x"})
+assert_true("reviews.gated_again_after_downgrade", review_core.status_code == 402, f"status={review_core.status_code}")
+
 print()
 print(f"PASSED: {len(passed)}  FAILED: {len(failed)}")
 if failed:

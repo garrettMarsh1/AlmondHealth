@@ -5,9 +5,9 @@ Vite + React + TypeScript single-page app. Ports the designer's prototype to a r
 ## Run
 ```bash
 npm install
-npm run dev          # → http://localhost:5173
+npm run dev          # → http://localhost:5175
 ```
-The dev server proxies `/v1/*` to the backend at `http://localhost:5173` → `http://localhost:8088` (see `vite.config.ts`), so no CORS setup is needed. The backend must be running (see ../backend).
+The dev server proxies `/v1/*` to the backend at `http://localhost:5175` → `http://localhost:8088` (see `vite.config.ts`), so no CORS setup is needed. The backend must be running (see ../backend).
 
 Build for production (type-checks first):
 ```bash

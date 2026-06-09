@@ -374,4 +374,49 @@ Added:
 ## Persistence (src/almond/db.py)
 SQLite (stdlib `sqlite3`) at `backend/almond.db`. `db.connect()` returns a
 `Row`-factory connection; `db.init()` creates tables: `leads`, `form_templates`,
-`form_submissions`, `conversations`, `messages`, `users`, `audit_log`, `auth_tokens`.
+`form_submissions`, `conversations`, `messages`, `users`, `audit_log`, `auth_tokens`,
+`accounts`, `subscriptions`, `usage_events`, `usage_counters`, `waitlist_entries`,
+`review_requests`, `stripe_events`. `users` additionally carries an additive
+`account_id` column.
+
+## v1.1 — Plans, entitlements & usage (additive)
+Everything here is ADDITIVE. Every existing route above is unchanged and remains
+ungated; only the NEW endpoints below enforce plan/usage gating. Tiers are priced
+PER LOCATION: Core $199, Pro $349, Practice+ $599+ (quote-gated). The core loop is
+never fenced — gating applies only to growth/AI/governance features.
+
+**Plan → feature matrix** (`src/almond/entitlements.py`)
+- Core: (none — the full core loop)
+- Pro: `waitlist_autofill`, `review_automation`, `advanced_analytics`
+- Practice+: Pro + `ai_voice`, `payments_text_to_pay`, `insurance_eligibility`,
+  `multi_location`, `governance_audit`
+- Per-location monthly quotas: `sms_segments` 1000/5000/15000, `ai_minutes`
+  0/0/500, `eligibility_checks` 0/0/800.
+- `require_feature(key)` / `require_quota(meter)` are FastAPI dependencies built on
+  `auth.current_user`. Only campaign SMS is metered (transactional/two-way never is).
+
+**Login envelope** — `POST /v1/auth/login` now also returns
+`account: { id, name, plan, location_count }` and
+`entitlements: { plan, features[], quotas{meter:{limit,used,remaining,overage_rate}} }`.
+
+**Endpoints**
+- `GET /v1/billing/plan` → current plan, price, location_count, features, quotas, `stripe_configured`.
+- `GET /v1/billing/plans` → the three plans (name, price, blurb, features, quotas, recommended).
+- `POST /v1/billing/checkout {plan}` → Stripe Checkout `{url}` when configured, else `{status:"recorded"}`.
+- `POST /v1/billing/webhook` → Stripe events (HMAC-verified, idempotent) sync plan into our DB.
+- `POST /v1/billing/dev/set-plan {plan}` → Owner/Admin only; demo upgrade switch (disabled once Stripe is configured).
+- `GET /v1/usage` → `{ period, plan, meters[{key,label,used,included,remaining,overage_rate}] }`.
+- `GET /v1/analytics/advanced` → gated `advanced_analytics`; funnel, revenue_by_source, no_show, time_saved (real aggregates).
+- `GET/POST /v1/waitlist`, `DELETE /v1/waitlist/{id}`, `POST /v1/waitlist/fill` (gated `waitlist_autofill` + `sms_segments`).
+- `GET /v1/reviews`, `POST /v1/reviews/request` (gated `review_automation` + `sms_segments`).
+
+**Gating error shapes** (HTTP 402): plan-locked →
+`{ error:"plan_required", feature, plan, required_plan, message }`; over quota →
+`{ error:"quota_exceeded", meter, used, limit, plan, message }`.
+
+**Source of truth:** our DB for gating reads; Stripe for billing (synced via
+webhooks, never read on the request path). PHI is never sent to Stripe.
+
+## Config additions (src/almond/config.py, `ALMOND_` prefix)
+`stripe_secret_key`, `stripe_webhook_secret`, `stripe_price_core`,
+`stripe_price_pro`, `stripe_price_practice_plus`, `review_link`.

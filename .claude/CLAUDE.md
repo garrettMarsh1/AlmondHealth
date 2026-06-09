@@ -20,11 +20,12 @@ frontend (React) ─► /v1 API (FastAPI, canonical model) ─► DentalConnecto
 - Don't break working endpoints or the OpenDentalConnector.
 
 ## Run it
-Backend (API on :8088) and frontend (:5173) in separate terminals:
+Backend (API on :8088) and frontend (:5175) in separate terminals:
 ```bash
 cd backend  && PYTHONPATH=src .venv/bin/uvicorn almond.api:app --port 8088
-cd frontend && npm run dev          # → http://localhost:5173
+cd frontend && npm run dev          # → http://localhost:5175
 ```
+The frontend dev port is **5175** on purpose — **never use 5173** (reserved for the owner's day-job dev server).
 First-time setup: `cd backend && python3 -m venv .venv && .venv/bin/pip install -e .` and `cd frontend && npm install`.
 Login: `dana@brightsmile.co` / `demo1234`. (Slash commands: `/setup`, `/dev`, `/smoke`.)
 
@@ -36,13 +37,24 @@ Login: `dana@brightsmile.co` / `demo1234`. (Slash commands: `/setup`, `/dev`, `/
 - **Add a PMS connector:** implement `connectors/base.py:DentalConnector` in `connectors/<pms>.py`, register it in `connectors/registry.py`. The Denticon stub (`connectors/denticon.py`) shows the shape; it needs a Planet DDS single-customer key. Nothing in the API or frontend changes.
 - **Add an endpoint:** add it to the right file in `backend/src/almond/routers/` (each feature is its own `APIRouter`, included in `api.py`), update `CONTRACT.md`, add a smoke assertion.
 - **Add a screen:** create `frontend/src/screens/X.tsx` (reuse `ui.tsx` components + the CSS classes + `api.ts`; type props and `useState` generics, import domain types from `../types`), import + register it in `App.tsx`. Port from the prototype look; wire to `/v1`.
+- **Add a gated/premium feature:** add its `feature_key` to `entitlements.py:PLAN_FEATURES` (and a `QUOTAS` entry if metered), put the endpoint in a router wrapped with `require_feature(key)` (+ `require_quota(meter)`), and gate the screen with `hasFeature()` + `<UpgradePrompt>`. **Never gate an existing core route.** Update `CONTRACT.md` §v1.1 and add a smoke assertion.
+
+## Tiers, entitlements & billing (v1.1)
+- 3 plans priced **per location**: Core $199 / Pro $349 / Practice+ $599+. The matrix is the single source of truth in `backend/src/almond/entitlements.py` (`PLAN_FEATURES`, `QUOTAS`).
+- **Never fence the core loop** (leads, scheduling, forms→chart, two-way messaging, basic reports) — it's the price+ease wedge. Gate only growth/AI/governance features.
+- **Gating reads from our DB; Stripe is billing-only** (synced via `POST /v1/billing/webhook`, never called on the request path). **Never send PHI to Stripe.**
+- **Demo upgrade switch:** with no Stripe keys, `POST /v1/billing/dev/set-plan {plan}` (Owner/Admin) flips the plan instantly so you can show the sliding scale; with `ALMOND_STRIPE_*` set it routes through Stripe Checkout.
+- Only **campaign** SMS is metered (`notify.send_sms(..., category="campaign")`); transactional/two-way is never counted.
+- AI voice / payments / eligibility are Practice+ keys in **recorded/sandbox** mode pending signed BAAs — no real PHI through them yet. Postgres is required before metered billing goes live (SQLite can't do concurrent increments).
+- Frontend: entitlements persist via `frontend/src/entitlements.ts` (`hasFeature`); gated screens render `<UpgradePrompt>`; `ApiError.status === 402` signals a gate. Full shapes in `backend/CONTRACT.md` §v1.1.
 
 ## Key files
 - `backend/src/almond/api.py` — app + router includes.
 - `backend/src/almond/db.py` / `store.py` — SQLite persistence + seed (DB at `backend/almond.db`, gitignored, reseeds on first run).
 - `backend/src/almond/connectors/open_dental.py` — the live connector (auth `ODFHIR <dev>/<customer>`, base `https://api.opendental.com/api/v1`).
 - `backend/CONTRACT.md` — every `/v1` endpoint + shape.
-- `frontend/src/{App,ui,ctx}.tsx`, `frontend/src/{api,types,data}.ts`, `frontend/src/screens/*.tsx`, `frontend/src/styles/*`.
+- `backend/src/almond/entitlements.py` — plan→feature matrix, quotas, `require_feature`/`require_quota`.
+- `frontend/src/{App,ui,ctx}.tsx`, `frontend/src/{api,types,data,entitlements}.ts`, `frontend/src/screens/*.tsx`, `frontend/src/styles/*`.
 
 ## Gotchas
 - **Config env prefix is `ALMOND_`** (`config.py`); see `backend/.env.example`. Defaults are the public Open Dental sandbox keys, so it runs with no `.env`.

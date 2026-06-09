@@ -45,9 +45,9 @@ PYTHONPATH=src .venv/bin/uvicorn almond.api:app --port 8088
 # 2) frontend (the app you open)
 cd frontend
 npm install
-npm run dev                      # → http://localhost:5173  (proxies /v1 to :8088)
+npm run dev                      # → http://localhost:5175  (proxies /v1 to :8088)
 ```
-Open **http://localhost:5173** and sign in: `dana@brightsmile.co` / `demo1234`.
+Open **http://localhost:5175** and sign in: `dana@brightsmile.co` / `demo1234`.
 
 ## Demo walkthrough
 1. **Sign in** → "Private AI-powered front office."
