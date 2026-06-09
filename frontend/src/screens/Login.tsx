@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { Button, Icon, useToast } from "../ui";
 import { api } from "../api";
+import { setEntitlements } from "../entitlements";
 import { DATA } from "../data";
 import type { User } from "../types";
 
@@ -23,6 +24,7 @@ export default function Login({ onSuccess }: LoginProps) {
     setError(null);
     try {
       const res = await api.login(email, password);
+      setEntitlements(res.entitlements);
       toast({ tone: "success", title: `Welcome back, ${res.user?.name || "there"}`, desc: "Signed in to Almond", icon: "checkCircle" });
       onSuccess(res.user, res.token);
     } catch {

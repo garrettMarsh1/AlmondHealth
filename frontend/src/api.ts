@@ -24,9 +24,29 @@ import type {
   LoginResult,
   PublicFormPayload,
   PublicFormSubmitResult,
+  BillingPlan,
+  BillingPlanInfo,
+  CheckoutResult,
+  SetPlanResult,
+  UsageOverview,
+  AdvancedAnalytics,
+  WaitlistEntry,
+  WaitlistFillResult,
+  ReviewRequest,
 } from "./types";
 
 const TOKEN_KEY = "pb_token";
+
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
+  constructor(status: number, data: unknown) {
+    super(String(status));
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
 
 export function setToken(token: string | null): void {
   if (token) localStorage.setItem(TOKEN_KEY, token);
@@ -37,8 +57,16 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-function j<T>(r: Response): Promise<T> {
-  if (!r.ok) throw new Error(`${r.status}`);
+async function j<T>(r: Response): Promise<T> {
+  if (!r.ok) {
+    let data: unknown = null;
+    try {
+      data = await r.json();
+    } catch {
+      data = null;
+    }
+    throw new ApiError(r.status, data);
+  }
   return r.json() as Promise<T>;
 }
 
@@ -115,4 +143,22 @@ export const api = {
   publicForm: (token: string): Promise<PublicFormPayload> => req(`/v1/p/forms/${token}`),
   submitPublicForm: (token: string, answers: Record<string, unknown>): Promise<PublicFormSubmitResult> =>
     req(`/v1/p/forms/${token}`, { method: "POST", body: answers }),
+  billingPlan: (): Promise<BillingPlan> => req("/v1/billing/plan"),
+  billingPlans: (): Promise<BillingPlanInfo[]> => req("/v1/billing/plans"),
+  billingCheckout: (plan: string): Promise<CheckoutResult> =>
+    req("/v1/billing/checkout", { method: "POST", body: { plan } }),
+  billingDevSetPlan: (plan: string): Promise<SetPlanResult> =>
+    req("/v1/billing/dev/set-plan", { method: "POST", body: { plan } }),
+  usage: (): Promise<UsageOverview> => req("/v1/usage"),
+  advancedAnalytics: (): Promise<AdvancedAnalytics> => req("/v1/analytics/advanced"),
+  waitlist: (): Promise<WaitlistEntry[]> => req("/v1/waitlist"),
+  addWaitlist: (entry: { name: string; phone?: string; reason?: string }): Promise<WaitlistEntry> =>
+    req("/v1/waitlist", { method: "POST", body: entry }),
+  removeWaitlist: (id: string): Promise<{ ok: boolean }> =>
+    req(`/v1/waitlist/${id}`, { method: "DELETE" }),
+  fillWaitlist: (dateStart: string, dateEnd: string): Promise<WaitlistFillResult> =>
+    req("/v1/waitlist/fill", { method: "POST", body: { date_start: dateStart, date_end: dateEnd } }),
+  reviews: (): Promise<ReviewRequest[]> => req("/v1/reviews"),
+  requestReview: (data: { name: string; phone?: string; patient_id?: string }): Promise<ReviewRequest> =>
+    req("/v1/reviews/request", { method: "POST", body: data }),
 };

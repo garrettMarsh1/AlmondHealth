@@ -520,3 +520,51 @@ export interface DataStateProps {
 export function DataState({ children }: DataStateProps) {
   return <>{children}</>;
 }
+
+export interface UpgradePromptProps {
+  title: ReactNode;
+  desc?: ReactNode;
+  requiredPlan?: string;
+  onUpgrade?: () => void;
+}
+
+export function UpgradePrompt({ title, desc, requiredPlan, onUpgrade }: UpgradePromptProps) {
+  return (
+    <div className="card card-pad" style={{ textAlign: "center", padding: "40px 28px", border: "1px dashed var(--line)" }}>
+      <span className="em-ic" style={{ background: "var(--a-50)", color: "var(--a-700)", margin: "0 auto 14px" }}><Icon name="zap" /></span>
+      <h3 style={{ margin: "0 0 6px", fontSize: 17 }}>{title}</h3>
+      {desc && <p className="muted" style={{ maxWidth: 440, margin: "0 auto 18px", fontSize: 13.5, lineHeight: 1.55 }}>{desc}</p>}
+      {onUpgrade && (
+        <Button variant="primary" icon="zap" onClick={onUpgrade}>
+          {requiredPlan ? `Upgrade to ${requiredPlan}` : "See plans"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+export interface UsageMeterProps {
+  label: ReactNode;
+  used: number;
+  included: number;
+  unit?: string;
+}
+
+export function UsageMeter({ label, used, included, unit }: UsageMeterProps) {
+  const pct = included > 0 ? Math.min(100, Math.round((used / included) * 100)) : 0;
+  const over = included > 0 && used >= included;
+  const near = pct >= 80;
+  const color = over ? "var(--danger)" : near ? "var(--a-700)" : "var(--p-400)";
+  const cap = included > 0 ? included.toLocaleString() : "—";
+  return (
+    <div style={{ padding: "13px 0" }}>
+      <div className="between" style={{ marginBottom: 7 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 500 }}>{label}</span>
+        <span className="tnum muted" style={{ fontSize: 13 }}>{used.toLocaleString()} / {cap}{unit ? ` ${unit}` : ""}</span>
+      </div>
+      <div style={{ height: 7, background: "var(--n-100)", borderRadius: 99 }}>
+        <div style={{ width: pct + "%", height: "100%", background: color, borderRadius: 99 }} />
+      </div>
+    </div>
+  );
+}

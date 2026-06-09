@@ -187,6 +187,8 @@ export interface User {
 export interface LoginResult {
   token: string;
   user: User;
+  account?: AccountInfo | null;
+  entitlements?: Entitlements | null;
 }
 
 export interface AuditEntry {
@@ -212,7 +214,108 @@ export interface ReportsOverview {
   kpis: ReportKpi[];
   time_saved: string;
   chart: number[];
-  revenue_breakdown?: Array<{ label: string; value: number | string }>;
+  revenue_breakdown?: Array<{ label: string; amount?: string; value: number | string; pct?: number }>;
+}
+
+export interface AccountInfo {
+  id: string;
+  name: string;
+  plan: string;
+  location_count: number;
+}
+
+export interface QuotaInfo {
+  limit: number;
+  used: number;
+  remaining: number;
+  overage_rate: number;
+}
+
+export interface Entitlements {
+  plan: string;
+  features: string[];
+  quotas: Record<string, QuotaInfo>;
+}
+
+export interface UsageMeterInfo {
+  key: string;
+  label: string;
+  used: number;
+  included: number;
+  remaining: number;
+  overage_rate: number;
+}
+
+export interface UsageOverview {
+  period: string;
+  plan: string;
+  meters: UsageMeterInfo[];
+}
+
+export interface BillingPlanInfo {
+  plan: string;
+  name: string;
+  price_monthly: number;
+  blurb: string;
+  features: string[];
+  quotas: Record<string, { included: number; overage_rate: number }>;
+  recommended: boolean;
+}
+
+export interface BillingPlan {
+  plan: string;
+  price_monthly: number;
+  location_count: number;
+  features: string[];
+  quotas: Record<string, QuotaInfo>;
+  stripe_configured: boolean;
+}
+
+export interface CheckoutResult {
+  url?: string;
+  status?: string;
+  plan?: string;
+  note?: string;
+}
+
+export interface SetPlanResult {
+  ok: boolean;
+  plan: string;
+  entitlements: Entitlements;
+}
+
+export interface WaitlistEntry {
+  id: string;
+  account_id: string;
+  name: string;
+  phone?: string | null;
+  reason?: string | null;
+  status: string;
+  created_at?: string | null;
+  notified_at?: string | null;
+}
+
+export interface WaitlistFillResult {
+  notified: number;
+  slot: Slot | null;
+  sms_status?: string | null;
+}
+
+export interface ReviewRequest {
+  id: string;
+  account_id: string;
+  name: string;
+  phone?: string | null;
+  patient_id?: string | null;
+  status: string;
+  created_at?: string | null;
+}
+
+export interface AdvancedAnalytics {
+  funnel: { leads: number; contacted: number; converted: number; conversion_rate: number };
+  revenue_by_source: Array<{ source: string; value: number }>;
+  no_show: { est_monthly_cost: number; recoverable: number };
+  time_saved: { hours: number; value: number };
 }
 
 export type ConnectorStatus = "connected" | "available";

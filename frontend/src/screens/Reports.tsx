@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button, Badge, Segmented, Icon, SkelCards, SkelBlock, ErrorState, EmptyState } from "../ui";
-import { api } from "../api";
-import type { ReportsOverview, ReportKpi } from "../types";
+import { Button, Badge, Segmented, Icon, SkelCards, SkelBlock, ErrorState, EmptyState, UpgradePrompt } from "../ui";
+import { api, ApiError } from "../api";
+import { useNav } from "../ctx";
+import type { ReportsOverview, ReportKpi, AdvancedAnalytics } from "../types";
 
 const RANGES: Record<string, string> = { "7": "Last 7 days", "30": "Last 30 days", "90": "Last 90 days" };
 
@@ -43,6 +44,10 @@ export default function Reports() {
   const [data, setData] = useState<ReportsOverview | null>(null);
   const [status, setStatus] = useState<Status>("loading");
 
+  const { navigate } = useNav();
+  const [adv, setAdv] = useState<AdvancedAnalytics | null>(null);
+  const [advGated, setAdvGated] = useState(false);
+
   const load = (r: string) => {
     setStatus("loading");
     api.reportsOverview(RANGES[r])
@@ -50,6 +55,11 @@ export default function Reports() {
       .catch(() => setStatus("error"));
   };
   useEffect(() => { load(range); }, [range]);
+  useEffect(() => {
+    api.advancedAnalytics()
+      .then((a) => { setAdv(a); setAdvGated(false); })
+      .catch((err) => { if (err instanceof ApiError && err.status === 402) setAdvGated(true); });
+  }, []);
 
   return (
     <div className="content">
@@ -118,15 +128,34 @@ export default function Reports() {
                 <div className="card">
                   <div className="card-head"><div className="card-title" style={{ fontSize: 15 }}>Where revenue came from</div></div>
                   <div>
-                    {([["New patients (recovered calls)", "$22,400", 58], ["New patients (web requests)", "$14,800", 38], ["Reactivated / whitening", "$11,000", 28]] as Array<[string, string, number]>).map(([label, amt, pct]) => (
-                      <div key={label} style={{ padding: "13px 18px", borderBottom: "1px solid var(--line)" }}>
-                        <div className="between" style={{ marginBottom: 7 }}><span style={{ fontSize: 13.5, fontWeight: 500 }}>{label}</span><span className="tnum" style={{ fontWeight: 700 }}>{amt}</span></div>
-                        <div style={{ height: 7, background: "var(--n-100)", borderRadius: 99 }}><div style={{ width: pct + "%", height: "100%", background: "var(--p-400)", borderRadius: 99 }} /></div>
-                      </div>
-                    ))}
+                    {data.revenue_breakdown && data.revenue_breakdown.length > 0
+                      ? data.revenue_breakdown.map((row) => (
+                        <div key={row.label} style={{ padding: "13px 18px", borderBottom: "1px solid var(--line)" }}>
+                          <div className="between" style={{ marginBottom: 7 }}><span style={{ fontSize: 13.5, fontWeight: 500 }}>{row.label}</span><span className="tnum" style={{ fontWeight: 700 }}>{row.amount || row.value}</span></div>
+                          <div style={{ height: 7, background: "var(--n-100)", borderRadius: 99 }}><div style={{ width: (row.pct ?? 0) + "%", height: "100%", background: "var(--p-400)", borderRadius: 99 }} /></div>
+                        </div>
+                      ))
+                      : <div className="card-pad muted" style={{ fontSize: 13 }}>No revenue attributed yet.</div>}
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div style={{ marginTop: 22 }}>
+              <div className="between" style={{ marginBottom: 12 }}>
+                <h2 style={{ fontSize: 17, margin: 0 }}>Advanced analytics</h2>
+                {!advGated && <Badge tone="ok" icon="zap">Pro</Badge>}
+              </div>
+              {advGated && (
+                <UpgradePrompt title="Advanced analytics is a Pro feature" desc="Conversion funnel, revenue attribution, no-show cost recovery, and staff-time ROI — the numbers that justify the spend. Upgrade to Pro to unlock." requiredPlan="Pro" onUpgrade={() => navigate("billing")} />
+              )}
+              {!advGated && adv && (
+                <div className="statgrid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+                  <div className="card card-pad"><div className="statcard-label">Lead → patient conversion</div><div className="statcard-val tnum">{adv.funnel.conversion_rate}%</div><div className="statcard-hint">{adv.funnel.converted} of {adv.funnel.leads} leads</div></div>
+                  <div className="card card-pad"><div className="statcard-label">No-show cost · est./mo</div><div className="statcard-val tnum">${adv.no_show.est_monthly_cost.toLocaleString()}</div><div className="statcard-hint">~${adv.no_show.recoverable.toLocaleString()} recoverable with auto-fill</div></div>
+                  <div className="card card-pad"><div className="statcard-label">Staff time saved</div><div className="statcard-val tnum">{adv.time_saved.hours} hrs</div><div className="statcard-hint">≈ ${adv.time_saved.value.toLocaleString()} of front-desk time</div></div>
+                </div>
+              )}
             </div>
 
             <div className="card card-pad" style={{ marginTop: 20 }}>

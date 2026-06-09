@@ -18,6 +18,10 @@ import Settings from "./screens/Settings";
 import Onboarding from "./screens/Onboarding";
 import PatientForm from "./screens/PatientForm";
 import PatientBooking from "./screens/PatientBooking";
+import Waitlist from "./screens/Waitlist";
+import Reviews from "./screens/Reviews";
+import Billing from "./screens/Billing";
+import { hasFeature, clearEntitlements } from "./entitlements";
 
 interface NavItem {
   key: string;
@@ -49,29 +53,46 @@ const RECORDS: NavSection = {
   ],
 };
 
+const GROWTH: NavSection = {
+  section: "Growth",
+  items: [
+    { key: "waitlist", label: "Waitlist", icon: "calendar" },
+    { key: "reviews", label: "Reviews", icon: "star" },
+  ],
+};
+
 const OWNER: NavSection = {
   section: "Owner",
   items: [
     { key: "reports", label: "Reports & ROI", icon: "reports" },
+    { key: "billing", label: "Plan & billing", icon: "dollar" },
     { key: "settings", label: "Settings", icon: "settings" },
   ],
+};
+
+const NAV_FEATURE: Record<string, string> = {
+  waitlist: "waitlist_autofill",
+  reviews: "review_automation",
 };
 
 const TITLES: Record<string, string> = {
   today: "Today", leads: "Leads & calls", scheduler: "Scheduler", messages: "Messages",
   forms: "Forms", sendform: "Send a form", patient: "Patient timeline",
-  reports: "Reports & ROI", settings: "Settings", onboarding: "Set up Almond",
+  waitlist: "Waitlist", reviews: "Reviews",
+  reports: "Reports & ROI", billing: "Plan & billing", settings: "Settings", onboarding: "Set up Almond",
 };
 
 const SCREENS: Record<string, ComponentType> = {
   today: Today, leads: Leads, scheduler: Scheduler, messages: Messages,
   forms: Forms, sendform: SendForm, patient: PatientTimeline,
-  reports: Reports, settings: Settings, onboarding: Onboarding,
+  waitlist: Waitlist, reviews: Reviews,
+  reports: Reports, billing: Billing, settings: Settings, onboarding: Onboarding,
 };
 
 const LIVE = new Set<string>([
   "today", "leads", "scheduler", "messages",
-  "forms", "sendform", "patient", "reports", "settings",
+  "forms", "sendform", "patient", "waitlist", "reviews",
+  "reports", "billing", "settings",
 ]);
 
 const isOwner = (user: User | null): boolean => {
@@ -118,7 +139,7 @@ interface ShellProps {
 
 function Shell({ user, onSignOut }: ShellProps) {
   const owner = isOwner(user);
-  const nav = owner ? [FRONT_OFFICE, RECORDS, OWNER] : [FRONT_OFFICE, RECORDS];
+  const nav = owner ? [FRONT_OFFICE, RECORDS, GROWTH, OWNER] : [FRONT_OFFICE, RECORDS, GROWTH];
 
   const initial = (location.hash || "#today").slice(1);
   const [route, setRoute] = useState(SCREENS[initial] ? initial : "today");
@@ -151,7 +172,9 @@ function Shell({ user, onSignOut }: ShellProps) {
                   <button key={it.key} className={`nav-item ${route === it.key ? "active" : ""}`} onClick={() => navigate(it.key)}>
                     <Icon name={it.icon} size={18} className="ni-ic" />
                     <span className="ni-label">{it.label}</span>
-                    {LIVE.has(it.key) && <span className="ni-badge" style={{ background: "var(--ok-bg)", color: "var(--ok-ink)" }}>live</span>}
+                    {NAV_FEATURE[it.key] && !hasFeature(NAV_FEATURE[it.key])
+                      ? <Icon name="lock" size={13} style={{ marginLeft: "auto", color: "var(--ink-muted)" }} />
+                      : LIVE.has(it.key) && <span className="ni-badge" style={{ background: "var(--ok-bg)", color: "var(--ok-ink)" }}>live</span>}
                   </button>
                 ))}
               </div>
@@ -215,6 +238,7 @@ export default function App() {
 
   const onSignOut = () => {
     persistToken(null);
+    clearEntitlements();
     try { localStorage.removeItem("pb_user"); } catch {}
     setUser(null);
     setTokenState(null);
