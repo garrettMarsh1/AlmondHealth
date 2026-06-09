@@ -1,12 +1,20 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { Button, Badge, Toggle, EmptyState, ErrorState, SkelCards, SkelBlock, useToast, Icon } from "../ui";
 import { useNav } from "../ctx";
 import { api } from "../api";
 import { DATA } from "../data";
+import type { FormTemplate, FormField, FormFieldType, FormSubmission } from "../types";
 
-const CAT_TONE = { Intake: "pine", Medical: "apricot", Consent: "neutral" };
+const CAT_TONE: Record<string, string> = { Intake: "pine", Medical: "apricot", Consent: "neutral" };
 
-const FIELD_PALETTE = [
+interface PaletteItem {
+  type: FormFieldType;
+  label: string;
+  icon: string;
+}
+
+const FIELD_PALETTE: PaletteItem[] = [
   { type: "section", label: "Section heading", icon: "type" },
   { type: "text", label: "Text answer", icon: "edit" },
   { type: "choice", label: "Multiple choice", icon: "list" },
@@ -15,16 +23,23 @@ const FIELD_PALETTE = [
   { type: "signature", label: "Signature", icon: "signature" },
 ];
 
-const PALETTE_BY_TYPE = Object.fromEntries(FIELD_PALETTE.map((p) => [p.type, p]));
+const PALETTE_BY_TYPE: Record<string, PaletteItem> = Object.fromEntries(FIELD_PALETTE.map((p) => [p.type, p]));
 
-const fieldCount = (t) => (Array.isArray(t.fields) ? t.fields.length : 0);
-const normalizeField = (f) => (typeof f === "string" ? { type: "text", label: f, required: false } : { ...f });
+const fieldCount = (t: FormTemplate): number => (Array.isArray(t.fields) ? t.fields.length : 0);
+const normalizeField = (f: FormField | string): FormField =>
+  typeof f === "string" ? { type: "text", label: f, required: false } : { ...f };
 
-function Library({ onEdit }) {
+type Phase = "loading" | "ready" | "error";
+
+interface LibraryProps {
+  onEdit: (id: string) => void;
+}
+
+function Library({ onEdit }: LibraryProps) {
   const { navigate } = useNav();
-  const [templates, setTemplates] = useState([]);
-  const [submissions, setSubmissions] = useState([]);
-  const [phase, setPhase] = useState("loading");
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
+  const [submissions, setSubmissions] = useState<FormSubmission[]>([]);
+  const [phase, setPhase] = useState<Phase>("loading");
 
   const load = () => {
     setPhase("loading");
@@ -34,7 +49,7 @@ function Library({ onEdit }) {
   };
   useEffect(() => { load(); }, []);
 
-  const statsFor = (id) => {
+  const statsFor = (id: string) => {
     const subs = submissions.filter((s) => s.template_id === id);
     const done = subs.filter((s) => s.status === "completed" || s.status === "in_chart").length;
     return { sent: subs.length, completion: subs.length ? Math.round((done / subs.length) * 100) : 0 };
@@ -96,14 +111,19 @@ function Library({ onEdit }) {
   );
 }
 
-function Builder({ formId, onBack }) {
+interface BuilderProps {
+  formId: string;
+  onBack: () => void;
+}
+
+function Builder({ formId, onBack }: BuilderProps) {
   const toast = useToast();
   const isNew = formId === "new";
   const [name, setName] = useState(isNew ? "Untitled form" : "");
-  const [category, setCategory] = useState(null);
-  const [fields, setFields] = useState([]);
-  const [selIdx, setSelIdx] = useState(null);
-  const [phase, setPhase] = useState(isNew ? "ready" : "loading");
+  const [category, setCategory] = useState<string | null>(null);
+  const [fields, setFields] = useState<FormField[]>([]);
+  const [selIdx, setSelIdx] = useState<number | null>(null);
+  const [phase, setPhase] = useState<Phase>(isNew ? "ready" : "loading");
   const [saving, setSaving] = useState(false);
 
   const load = () => {
@@ -131,21 +151,20 @@ function Builder({ formId, onBack }) {
 
   const sel = selIdx != null ? fields[selIdx] : null;
 
-  const addField = (type, label) =>
+  const addField = (type: FormFieldType, label: string) =>
     setFields((f) => {
-      const next = [...f, { type, label, required: false, ...(type === "choice" ? { options: ["Option 1", "Option 2"] } : {}) }];
+      const next: FormField[] = [...f, { type, label, required: false, ...(type === "choice" ? { options: ["Option 1", "Option 2"] } : {}) }];
       setSelIdx(next.length - 1);
       return next;
     });
-  const removeField = (i) => { setFields((f) => f.filter((_, idx) => idx !== i)); setSelIdx(null); };
-  const patchField = (i, patch) => setFields((f) => f.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
+  const removeField = (i: number) => { setFields((f) => f.filter((_, idx) => idx !== i)); setSelIdx(null); };
+  const patchField = (i: number, patch: Partial<FormField>) => setFields((f) => f.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
 
   const save = async () => {
     setSaving(true);
-    const payload = { name, category, fields };
     try {
-      if (isNew) await api.createTemplate(payload);
-      else await api.updateTemplate(formId, payload);
+      if (isNew) await api.createTemplate({ name, fields, ...(category != null ? { category } : {}) });
+      else await api.updateTemplate(formId, { name, fields, ...(category != null ? { category } : {}) });
       toast({ tone: "success", title: "Form saved", desc: "Available to send" });
       onBack();
     } catch {
@@ -216,9 +235,9 @@ function Builder({ formId, onBack }) {
 
           <div className="builder-props">
             <div className="eyebrow" style={{ marginBottom: 14 }}>Field settings</div>
-            {sel ? (
+            {sel && selIdx != null ? (
               <div className="stack" style={{ gap: 16 }}>
-                <div className="field"><label className="label">Label</label><input className="input" value={sel.label} onChange={(e) => patchField(selIdx, { label: e.target.value })} /></div>
+                <div className="field"><label className="label">Label</label><input className="input" value={sel.label} onChange={(e: ChangeEvent<HTMLInputElement>) => patchField(selIdx, { label: e.target.value })} /></div>
                 <div className="field"><label className="label">Field type</label><div className="row" style={{ gap: 8 }}><Badge tone="pine" icon={(PALETTE_BY_TYPE[sel.type] || {}).icon || "type"}>{sel.type}</Badge></div></div>
                 {sel.type !== "section" && (
                   <div className="between"><div><div style={{ fontWeight: 600, fontSize: 14 }}>Required</div><div className="muted" style={{ fontSize: 12 }}>Patient must answer</div></div><Toggle checked={!!sel.required} onChange={(v) => patchField(selIdx, { required: v })} /></div>
@@ -227,7 +246,7 @@ function Builder({ formId, onBack }) {
                   <div className="field">
                     <label className="label">Options</label>
                     {(sel.options || []).map((o, oi) => (
-                      <input key={oi} className="input" style={{ marginBottom: 6 }} value={o} onChange={(e) => patchField(selIdx, { options: sel.options.map((x, xi) => (xi === oi ? e.target.value : x)) })} />
+                      <input key={oi} className="input" style={{ marginBottom: 6 }} value={o} onChange={(e: ChangeEvent<HTMLInputElement>) => patchField(selIdx, { options: (sel.options || []).map((x, xi) => (xi === oi ? e.target.value : x)) })} />
                     ))}
                     <Button variant="ghost" size="sm" icon="plus" onClick={() => patchField(selIdx, { options: [...(sel.options || []), `Option ${(sel.options || []).length + 1}`] })}>Add option</Button>
                   </div>
@@ -247,7 +266,7 @@ function Builder({ formId, onBack }) {
 }
 
 export default function Forms() {
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState<string | null>(null);
   return (
     <div className="content">
       <div className="content-wide">

@@ -1,11 +1,18 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { Button, Badge, SyncPill, Avatar, SkelRows, EmptyState, ErrorState, Icon } from "../ui";
 import { useNav } from "../ctx";
 import { api } from "../api";
+import type { Patient, PatientTimeline as PatientTimelineData, TimelineEvent } from "../types";
 
-const ICON_TONE = { appt: "pine", form: "pine", msg: "", send: "", lead: "apricot" };
+const ICON_TONE: Record<string, string> = { appt: "pine", form: "pine", msg: "", send: "", lead: "apricot" };
 
-const STATUS_META = {
+interface StatusMeta {
+  label: string;
+  tone: string;
+}
+
+const STATUS_META: Record<string, StatusMeta> = {
   in_chart: { label: "Saved to chart", tone: "pine" },
   completed: { label: "Completed", tone: "blue" },
   sent: { label: "Sent", tone: "neutral" },
@@ -17,11 +24,16 @@ const STATUS_META = {
   queued: { label: "Queued", tone: "neutral" },
 };
 
-const isRawStatus = (token) => /^[a-z]+(?:_[a-z]+)+$/.test(token) || token in STATUS_META;
+const isRawStatus = (token: string): boolean => /^[a-z]+(?:_[a-z]+)+$/.test(token) || token in STATUS_META;
 
-const humanize = (token) => token.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const humanize = (token: string): string => token.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-const splitTitleStatus = (title) => {
+interface SplitTitleStatus {
+  title: string;
+  status: string | null;
+}
+
+const splitTitleStatus = (title: string): SplitTitleStatus => {
   if (!title) return { title: "", status: null };
   const trimmed = title.trim();
   if (trimmed.endsWith('"')) return { title: trimmed, status: null };
@@ -33,9 +45,17 @@ const splitTitleStatus = (title) => {
   return { title: trimmed, status: null };
 };
 
-const fullName = (p) => (p ? [p.first, p.last].filter(Boolean).join(" ") : "");
+const fullName = (p: Patient | null | undefined): string => (p ? [p.first, p.last].filter(Boolean).join(" ") : "");
 
-function TimelineFeed({ status, events, onRetry }) {
+type TimelineFeedEvent = TimelineEvent & { by?: string | null };
+
+interface TimelineFeedProps {
+  status: string;
+  events: TimelineFeedEvent[];
+  onRetry: () => void;
+}
+
+function TimelineFeed({ status, events, onRetry }: TimelineFeedProps) {
   if (status === "loading") return <div className="card card-pad"><SkelRows n={5} avatar={false} /></div>;
   if (status === "error") return <ErrorState title="Couldn’t load this patient" onRetry={onRetry} />;
   if (!events.length)
@@ -74,20 +94,20 @@ function TimelineFeed({ status, events, onRetry }) {
 
 export default function PatientTimeline() {
   const { navigate, params } = useNav();
-  const [patients, setPatients] = useState([]);
-  const [selected, setSelected] = useState(params.patientId || "");
-  const [data, setData] = useState(null);
-  const [status, setStatus] = useState("idle");
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selected, setSelected] = useState<string>(typeof params.patientId === "string" ? params.patientId : "");
+  const [data, setData] = useState<PatientTimelineData | null>(null);
+  const [status, setStatus] = useState<string>("idle");
 
   useEffect(() => {
     api.patients({ last: "" }).then((p) => {
       const list = p || [];
       setPatients(list);
-      if (!selected && list[0]) setSelected(list[0].id);
+      if (!selected && list[0]?.id) setSelected(list[0].id);
     }).catch(() => {});
   }, []);
 
-  const load = (id) => {
+  const load = (id: string) => {
     if (!id) return;
     setStatus("loading");
     api.patientTimeline(id)
@@ -112,9 +132,9 @@ export default function PatientTimeline() {
           </div>
           <div className="field" style={{ minWidth: 240 }}>
             <label className="label">Patient (live from Open Dental)</label>
-            <select className="input" value={selected} onChange={(e) => setSelected(e.target.value)}>
+            <select className="input" value={selected} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelected(e.target.value)}>
               <option value="">Select a patient…</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{fullName(p)} · #{p.id}</option>)}
+              {patients.map((p) => <option key={p.id} value={p.id ?? ""}>{fullName(p)} · #{p.id}</option>)}
             </select>
           </div>
         </div>
@@ -145,7 +165,7 @@ export default function PatientTimeline() {
               <div className="card">
                 <div className="card-head"><div className="card-title" style={{ fontSize: 15 }}>Details</div></div>
                 <div>
-                  {[["Date of birth", patient?.dob], ["Mobile", patient?.phone], ["Email", patient?.email], ["Record system", "Open Dental"]].map(([k, v]) => (
+                  {([["Date of birth", patient?.dob], ["Mobile", patient?.phone], ["Email", patient?.email], ["Record system", "Open Dental"]] as Array<[string, string | null | undefined]>).map(([k, v]) => (
                     <div className="between" key={k} style={{ padding: "12px 18px", borderBottom: "1px solid var(--line)" }}>
                       <span className="muted" style={{ fontSize: 13 }}>{k}</span>
                       <span style={{ fontWeight: 600, fontSize: 13.5 }}>{v || "—"}</span>

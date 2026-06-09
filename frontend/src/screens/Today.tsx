@@ -2,11 +2,16 @@ import { useState, useEffect } from "react";
 import { Button, Badge, SyncPill, Avatar, StatCard } from "../ui";
 import { useNav } from "../ctx";
 import { api } from "../api";
+import type { Lead, LeadStage, Appointment, Conversation } from "../types";
 
-const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
-const STAGE_TONE = { new: "apricot", contacted: "warn", booked: "pine", converted: "ok" };
+const cap = (s: string): string => (s ? s[0].toUpperCase() + s.slice(1) : "");
+const STAGE_TONE: Record<LeadStage, string> = { new: "apricot", contacted: "warn", booked: "pine", converted: "ok" };
 
-function ApptStatus({ status }) {
+interface ApptStatusProps {
+  status?: string | null;
+}
+
+function ApptStatus({ status }: ApptStatusProps) {
   const s = (status || "").toLowerCase();
   const tone = s.includes("complete") ? "ok" : s.includes("sched") ? "ok" : "warn";
   return <Badge tone={tone} icon="check">{status || "Scheduled"}</Badge>;
@@ -14,9 +19,9 @@ function ApptStatus({ status }) {
 
 export default function Today() {
   const { navigate } = useNav();
-  const [leads, setLeads] = useState([]);
-  const [appts, setAppts] = useState([]);
-  const [conversations, setConversations] = useState([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   useEffect(() => {
     const start = new Date().toISOString().slice(0, 10);
@@ -29,9 +34,9 @@ export default function Today() {
   const followups = leads.filter((l) => ["new", "contacted"].includes(l.stage)).slice(0, 4);
   const newCount = leads.filter((l) => l.stage === "new").length;
   const unread = conversations.filter((c) => (c.unread || 0) > 0);
-  const fmt = (iso) => {
+  const fmt = (iso: string): string => {
     const d = new Date(iso);
-    return isNaN(d) ? iso : d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    return isNaN(d.getTime()) ? iso : d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   };
 
   return (
@@ -49,7 +54,7 @@ export default function Today() {
       </div>
 
       <div className="statgrid" style={{ marginBottom: 20 }}>
-        <StatCard icon="leads" label="New leads" value={String(newCount)} delta={newCount ? `+${newCount}` : null} good hint="from calls + web" onClick={() => navigate("leads")} />
+        <StatCard icon="leads" label="New leads" value={String(newCount)} delta={newCount ? `+${newCount}` : undefined} good hint="from calls + web" onClick={() => navigate("leads")} />
         <StatCard icon="calendar" label="Upcoming appts" value={String(appts.length)} hint="live from PMS" onClick={() => navigate("leads")} />
         <StatCard icon="forms" label="Leads in pipeline" value={String(leads.length)} hint="all stages" onClick={() => navigate("leads")} />
         <StatCard icon="message" label="Unread messages" value={String(unread.length)} delta="new" good accent onClick={() => navigate("messages")} />

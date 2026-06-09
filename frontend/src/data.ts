@@ -1,8 +1,43 @@
 const AV = ["#2f5d4a", "#c5743c", "#3f6d8c", "#7a5ea8", "#a8546a", "#4a7a5f", "#8a6d3b", "#5a6b7a"];
-export const avatarColor = (s) => AV[(s ? s.charCodeAt(0) + s.charCodeAt(s.length - 1) : 0) % AV.length];
-export const initials = (n) => (n || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+export const avatarColor = (s: string): string =>
+  AV[(s ? s.charCodeAt(0) + s.charCodeAt(s.length - 1) : 0) % AV.length];
+export const initials = (n: string): string =>
+  (n || "?").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-export const DATA = {
+interface DataPractice {
+  name: string;
+  pms: string;
+  location: string;
+  phone: string;
+}
+
+interface DataUser {
+  name: string;
+  role: string;
+}
+
+interface DataConversation {
+  id: string;
+  name: string;
+  channel: string;
+  unread: number;
+  last: string;
+  when: string;
+}
+
+interface SmsTemplate {
+  name: string;
+  body: string;
+}
+
+interface DataShape {
+  practice: DataPractice;
+  user: DataUser;
+  conversations: DataConversation[];
+  smsTemplates: SmsTemplate[];
+}
+
+export const DATA: DataShape = {
   practice: { name: "Bright Smile Dental", pms: "Open Dental", location: "Austin, TX", phone: "(512) 555-0148" },
   user: { name: "Dana Whitfield", role: "Office Manager" },
   conversations: [

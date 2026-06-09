@@ -1,7 +1,18 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+} from "react";
+import type {
+  ReactNode,
+  CSSProperties,
+  ButtonHTMLAttributes,
+  MouseEvent,
+} from "react";
 import { avatarColor, initials } from "./data";
 
-const ICONS = {
+const ICONS: Record<string, string> = {
   today: '<path d="M3 12 12 3l9 9"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
   leads: '<path d="M4 5h16v14H4z"/><path d="M4 9h16"/><path d="M8 13h5"/><path d="M8 16h8"/>',
   calendar: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>',
@@ -68,7 +79,15 @@ const ICONS = {
   zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
 };
 
-export function Icon({ name, size = 18, className = "", strokeWidth = 1.8, style }) {
+export interface IconProps {
+  name: string;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+  style?: CSSProperties;
+}
+
+export function Icon({ name, size = 18, className = "", strokeWidth = 1.8, style }: IconProps) {
   const d = ICONS[name] || ICONS.info;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -77,7 +96,15 @@ export function Icon({ name, size = 18, className = "", strokeWidth = 1.8, style
   );
 }
 
-export function Button({ variant = "secondary", size, icon, iconRight, loading, children, className = "", ...rest }) {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: string;
+  size?: string;
+  icon?: string;
+  iconRight?: string;
+  loading?: boolean;
+}
+
+export function Button({ variant = "secondary", size, icon, iconRight, loading, children, className = "", ...rest }: ButtonProps) {
   const cls = ["btn", `btn-${variant}`, size && `btn-${size}`, className].filter(Boolean).join(" ");
   return (
     <button className={cls} {...rest}>
@@ -89,7 +116,14 @@ export function Button({ variant = "secondary", size, icon, iconRight, loading, 
   );
 }
 
-export function Badge({ tone = "neutral", icon, dot, children }) {
+export interface BadgeProps {
+  tone?: string;
+  icon?: string;
+  dot?: boolean;
+  children?: ReactNode;
+}
+
+export function Badge({ tone = "neutral", icon, dot, children }: BadgeProps) {
   return (
     <span className={`badge badge-${tone}`}>
       {dot && <span className="b-dot" />}
@@ -99,7 +133,14 @@ export function Badge({ tone = "neutral", icon, dot, children }) {
   );
 }
 
-export function SyncPill({ state = "saved", target = "Open Dental", time, onRetry }) {
+export interface SyncPillProps {
+  state?: string;
+  target?: string;
+  time?: string;
+  onRetry?: () => void;
+}
+
+export function SyncPill({ state = "saved", target = "Open Dental", time, onRetry }: SyncPillProps) {
   if (state === "syncing")
     return <span className="sync sync-prog"><Icon name="sync" className="ic" />Saving to {target}…</span>;
   if (state === "failed")
@@ -114,15 +155,32 @@ export function SyncPill({ state = "saved", target = "Open Dental", time, onRetr
   );
 }
 
-export function Avatar({ name, size = "md", color }) {
+export interface AvatarProps {
+  name: string;
+  size?: string;
+  color?: string;
+}
+
+export function Avatar({ name, size = "md", color }: AvatarProps) {
   return <span className={`avatar avatar-${size}`} style={{ background: color || avatarColor(name) }}>{initials(name)}</span>;
 }
 
-export function StatCard({ icon, label, value, delta, good, accent, onClick, hint }) {
+export interface StatCardProps {
+  icon: string;
+  label: ReactNode;
+  value: ReactNode;
+  delta?: string;
+  good?: boolean;
+  accent?: boolean;
+  onClick?: () => void;
+  hint?: ReactNode;
+}
+
+export function StatCard({ icon, label, value, delta, good, accent, onClick, hint }: StatCardProps) {
   return (
     <button className="statcard card card-hover" onClick={onClick} style={{ textAlign: "left" }}>
       <div className="statcard-top">
-        <span className="statcard-ic" style={accent ? { background: "var(--a-50)", color: "var(--a-700)" } : null}><Icon name={icon} size={18} /></span>
+        <span className="statcard-ic" style={accent ? { background: "var(--a-50)", color: "var(--a-700)" } : undefined}><Icon name={icon} size={18} /></span>
         {delta && <span className={`statcard-delta ${good ? "up" : "down"}`}><Icon name={good ? "arrowUp" : "arrowDown"} size={12} />{delta}</span>}
       </div>
       <div className="statcard-val tnum">{value}</div>
@@ -132,18 +190,40 @@ export function StatCard({ icon, label, value, delta, good, accent, onClick, hin
   );
 }
 
-export function Checkbox({ checked, onChange }) {
+export interface CheckboxProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+export function Checkbox({ checked, onChange }: CheckboxProps) {
   return (
-    <button role="checkbox" aria-checked={checked} className="check" onClick={(e) => { e.stopPropagation(); onChange(!checked); }}>
+    <button role="checkbox" aria-checked={checked} className="check" onClick={(e: MouseEvent) => { e.stopPropagation(); onChange(!checked); }}>
       <Icon name="check" strokeWidth={3} />
     </button>
   );
 }
 
-const ToastCtx = createContext(() => {});
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-  const push = (t) => {
+export interface Toast {
+  id: string;
+  title?: ReactNode;
+  desc?: ReactNode;
+  tone?: string;
+  icon?: string;
+  duration?: number;
+}
+
+export type ToastInput = Omit<Toast, "id">;
+export type ToastPush = (t: ToastInput) => void;
+
+const ToastCtx = createContext<ToastPush>(() => {});
+
+export interface ToastProviderProps {
+  children: ReactNode;
+}
+
+export function ToastProvider({ children }: ToastProviderProps) {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const push: ToastPush = (t) => {
     const id = Math.random().toString(36).slice(2);
     setToasts((x) => [...x, { id, ...t }]);
     setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), t.duration || 3800);
@@ -165,25 +245,39 @@ export function ToastProvider({ children }) {
     </ToastCtx.Provider>
   );
 }
-export const useToast = () => useContext(ToastCtx);
+export const useToast = (): ToastPush => useContext(ToastCtx);
 
-export function Drawer({ open, onClose, children, width = 460 }) {
+export interface DrawerProps {
+  open: boolean;
+  onClose: () => void;
+  children?: ReactNode;
+  width?: number;
+}
+
+export function Drawer({ open, onClose, children, width = 460 }: DrawerProps) {
   useEffect(() => {
     if (!open) return;
-    const h = (e) => e.key === "Escape" && onClose();
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open]);
   return (
     <div className={`drawer-overlay ${open ? "is-open" : ""}`} onClick={onClose}>
-      <aside className={`drawer ${open ? "is-open" : ""}`} style={{ width }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <aside className={`drawer ${open ? "is-open" : ""}`} style={{ width }} onClick={(e: MouseEvent) => e.stopPropagation()} role="dialog" aria-modal="true">
         {open && children}
       </aside>
     </div>
   );
 }
 
-export function EmptyState({ icon, title, desc, action }) {
+export interface EmptyStateProps {
+  icon: string;
+  title: ReactNode;
+  desc?: ReactNode;
+  action?: ReactNode;
+}
+
+export function EmptyState({ icon, title, desc, action }: EmptyStateProps) {
   return (
     <div className="empty">
       <span className="em-ic"><Icon name={icon} /></span>
@@ -194,7 +288,19 @@ export function EmptyState({ icon, title, desc, action }) {
   );
 }
 
-export function Segmented({ options, value, onChange }) {
+export interface SegmentedOption {
+  value: string;
+  label: ReactNode;
+  icon?: string;
+}
+
+export interface SegmentedProps {
+  options: SegmentedOption[];
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export function Segmented({ options, value, onChange }: SegmentedProps) {
   return (
     <div className="seg" role="tablist">
       {options.map((o) => (
@@ -206,7 +312,13 @@ export function Segmented({ options, value, onChange }) {
   );
 }
 
-export function Pagination({ page = 1, onChange = () => {}, label = "Showing 1–10 of 48" }) {
+export interface PaginationProps {
+  page?: number;
+  onChange?: (page: number) => void;
+  label?: ReactNode;
+}
+
+export function Pagination({ page = 1, onChange = () => {}, label = "Showing 1–10 of 48" }: PaginationProps) {
   return (
     <div className="between" style={{ padding: "12px 18px", borderTop: "1px solid var(--line)" }}>
       <span className="muted" style={{ fontSize: 13 }}>{label}</span>
@@ -221,7 +333,20 @@ export function Pagination({ page = 1, onChange = () => {}, label = "Showing 1�
   );
 }
 
-export function SortTh({ label, field, sort, onSort, style }) {
+export interface SortState {
+  field: string;
+  dir: "asc" | "desc";
+}
+
+export interface SortThProps {
+  label: ReactNode;
+  field: string;
+  sort?: SortState | null;
+  onSort: (field: string) => void;
+  style?: CSSProperties;
+}
+
+export function SortTh({ label, field, sort, onSort, style }: SortThProps) {
   const active = sort && sort.field === field;
   return (
     <th className="sortable" style={style} onClick={() => onSort(field)}>
@@ -236,21 +361,35 @@ export function SortTh({ label, field, sort, onSort, style }) {
   );
 }
 
-export function Toggle({ checked, onChange }) {
+export interface ToggleProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+export function Toggle({ checked, onChange }: ToggleProps) {
   return <button role="switch" aria-checked={checked} className="toggle" onClick={() => onChange(!checked)} />;
 }
 
-export function Modal({ open, onClose, title, children, footer, width = 480 }) {
+export interface ModalProps {
+  open: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
+  width?: number;
+}
+
+export function Modal({ open, onClose, title, children, footer, width = 480 }: ModalProps) {
   useEffect(() => {
     if (!open) return;
-    const h = (e) => e.key === "Escape" && onClose();
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open]);
   if (!open) return null;
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: width }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: width }} onClick={(e: MouseEvent) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2 className="modal-title">{title}</h2>
           <button className="btn-icon" onClick={onClose} aria-label="Close"><Icon name="x" /></button>
@@ -262,11 +401,21 @@ export function Modal({ open, onClose, title, children, footer, width = 480 }) {
   );
 }
 
-export function Tip({ label, children }) {
+export interface TipProps {
+  label: ReactNode;
+  children?: ReactNode;
+}
+
+export function Tip({ label, children }: TipProps) {
   return <span className="tip">{children}<span className="tip-bubble">{label}</span></span>;
 }
 
-export function DatePicker({ value = "Jun 9, 2026", label }) {
+export interface DatePickerProps {
+  value?: string;
+  label?: ReactNode;
+}
+
+export function DatePicker({ value = "Jun 9, 2026", label }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const days = Array.from({ length: 30 }, (_, i) => i + 1);
   const sel = 9;
@@ -298,7 +447,12 @@ export function DatePicker({ value = "Jun 9, 2026", label }) {
   );
 }
 
-export function SkelRows({ n = 5, avatar = true }) {
+export interface SkelRowsProps {
+  n?: number;
+  avatar?: boolean;
+}
+
+export function SkelRows({ n = 5, avatar = true }: SkelRowsProps) {
   return (
     <div>
       {Array.from({ length: n }).map((_, i) => (
@@ -315,7 +469,11 @@ export function SkelRows({ n = 5, avatar = true }) {
   );
 }
 
-export function SkelCards({ n = 6 }) {
+export interface SkelCardsProps {
+  n?: number;
+}
+
+export function SkelCards({ n = 6 }: SkelCardsProps) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 16 }}>
       {Array.from({ length: n }).map((_, i) => (
@@ -330,11 +488,21 @@ export function SkelCards({ n = 6 }) {
   );
 }
 
-export function SkelBlock({ h = 200 }) {
+export interface SkelBlockProps {
+  h?: number;
+}
+
+export function SkelBlock({ h = 200 }: SkelBlockProps) {
   return <div className="skel" style={{ height: h, width: "100%", borderRadius: "var(--r-lg)" }} />;
 }
 
-export function ErrorState({ title = "Couldn’t load this", desc, onRetry }) {
+export interface ErrorStateProps {
+  title?: ReactNode;
+  desc?: ReactNode;
+  onRetry?: () => void;
+}
+
+export function ErrorState({ title = "Couldn’t load this", desc, onRetry }: ErrorStateProps) {
   return (
     <div className="empty">
       <span className="em-ic" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}><Icon name="alertTri" /></span>
@@ -345,6 +513,10 @@ export function ErrorState({ title = "Couldn’t load this", desc, onRetry }) {
   );
 }
 
-export function DataState({ children }) {
-  return children;
+export interface DataStateProps {
+  children: ReactNode;
+}
+
+export function DataState({ children }: DataStateProps) {
+  return <>{children}</>;
 }

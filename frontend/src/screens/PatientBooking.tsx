@@ -1,34 +1,49 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { Icon, SkelRows, ErrorState, EmptyState, useToast } from "../ui";
 import { api } from "../api";
 import { DATA } from "../data";
+import type { Slot } from "../types";
 
-const SERVICES = [
+interface Service {
+  name: string;
+  dur: string;
+  desc: string;
+  minutes: number;
+}
+
+interface Booked {
+  day: string | null;
+  time: string;
+  service: string;
+}
+
+const SERVICES: Service[] = [
   { name: "New patient cleaning & exam", dur: "60 min", desc: "Comprehensive first visit", minutes: 60 },
   { name: "Routine cleaning", dur: "45 min", desc: "For existing patients", minutes: 45 },
   { name: "Emergency / tooth pain", dur: "30 min", desc: "Same or next-day", minutes: 30 },
   { name: "Consultation", dur: "30 min", desc: "Cosmetic, Invisalign, implants", minutes: 30 },
 ];
 
-const dayKey = (iso) => {
+const dayKey = (iso: string): string => {
   const d = new Date(iso);
-  return isNaN(d) ? iso : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  return isNaN(d.getTime()) ? iso : d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
 };
 
-const timeLabel = (iso) => {
+const timeLabel = (iso: string): string => {
   const d = new Date(iso);
-  return isNaN(d) ? iso : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return isNaN(d.getTime()) ? iso : d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 };
 
-function groupByDay(slots) {
-  const map = new Map();
+function groupByDay(slots: Slot[]): Map<string, Slot[]> {
+  const map = new Map<string, Slot[]>();
   for (const s of slots) {
     if (!s || !s.start) continue;
     const key = dayKey(s.start);
     if (!map.has(key)) map.set(key, []);
-    map.get(key).push(s);
+    map.get(key)!.push(s);
   }
-  for (const arr of map.values()) arr.sort((a, b) => new Date(a.start) - new Date(b.start));
+  for (const arr of map.values()) arr.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
   return map;
 }
 
@@ -43,17 +58,17 @@ function StatusBar() {
 
 export default function PatientBooking() {
   const toast = useToast();
-  const [step, setStep] = useState(0);
-  const [svc, setSvc] = useState(null);
-  const [slots, setSlots] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [day, setDay] = useState(null);
-  const [slot, setSlot] = useState(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [booking, setBooking] = useState(false);
-  const [booked, setBooked] = useState(null);
+  const [step, setStep] = useState<number>(0);
+  const [svc, setSvc] = useState<string | null>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<boolean>(false);
+  const [day, setDay] = useState<string | null>(null);
+  const [slot, setSlot] = useState<Slot | null>(null);
+  const [name, setName] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [booking, setBooking] = useState<boolean>(false);
+  const [booked, setBooked] = useState<Booked | null>(null);
 
   const service = SERVICES.find((s) => s.name === svc) || null;
 
@@ -90,7 +105,7 @@ export default function PatientBooking() {
       const appt = await api.bookAppointment({
         patient_id: name || "self-booking",
         start: slot.start,
-        operatory_id: slot.operatory_id,
+        operatory_id: slot.operatory_id ?? "",
         provider_id: slot.provider_id,
         reason,
       });
@@ -164,8 +179,8 @@ export default function PatientBooking() {
             {step === 2 && (<>
               <div className="pat-q"><div className="pq-label">Almost there</div><div className="pq-hint">Just your name and number to confirm.</div></div>
               <div className="stack" style={{ gap: 12 }}>
-                <input className="pat-input" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-                <input className="pat-input" placeholder="Mobile phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <input className="pat-input" placeholder="Full name" value={name} onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)} autoFocus />
+                <input className="pat-input" placeholder="Mobile phone" value={phone} onChange={(e: ChangeEvent<HTMLInputElement>) => setPhone(e.target.value)} />
               </div>
               <div className="card card-pad" style={{ marginTop: 18, background: "var(--p-50)", borderColor: "var(--p-100)" }}>
                 <div className="row" style={{ gap: 10 }}><Icon name="calendar" size={18} style={{ color: "var(--p-500)" }} /><div><div style={{ fontWeight: 700, fontSize: 14 }}>{svc}</div><div style={{ fontSize: 13, color: "var(--p-700)" }}>{day} · {slotTime}</div></div></div>

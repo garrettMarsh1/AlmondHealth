@@ -30,19 +30,19 @@ Login: `dana@brightsmile.co` / `demo1234`. (Slash commands: `/setup`, `/dev`, `/
 
 ## Verify before claiming done (always)
 - Backend: `cd backend && PYTHONPATH=src .venv/bin/python scripts/smoke.py` (in-process FastAPI TestClient; exercises the live form→chart loop).
-- Frontend: `cd frontend && npx vite build` (must exit 0). Don't start a dev server inside an agent — it hangs.
+- Frontend: `cd frontend && npm run build` (runs `tsc --noEmit && vite build`; must exit 0). Type-check only: `npm run typecheck`. Don't start a dev server inside an agent — it hangs.
 
 ## How to extend
 - **Add a PMS connector:** implement `connectors/base.py:DentalConnector` in `connectors/<pms>.py`, register it in `connectors/registry.py`. The Denticon stub (`connectors/denticon.py`) shows the shape; it needs a Planet DDS single-customer key. Nothing in the API or frontend changes.
 - **Add an endpoint:** add it to the right file in `backend/src/almond/routers/` (each feature is its own `APIRouter`, included in `api.py`), update `CONTRACT.md`, add a smoke assertion.
-- **Add a screen:** create `frontend/src/screens/X.jsx` (reuse `ui.jsx` components + the CSS classes + `api.js`), import + register it in `App.jsx`. Port from the prototype look; wire to `/v1`.
+- **Add a screen:** create `frontend/src/screens/X.tsx` (reuse `ui.tsx` components + the CSS classes + `api.ts`; type props and `useState` generics, import domain types from `../types`), import + register it in `App.tsx`. Port from the prototype look; wire to `/v1`.
 
 ## Key files
 - `backend/src/almond/api.py` — app + router includes.
 - `backend/src/almond/db.py` / `store.py` — SQLite persistence + seed (DB at `backend/almond.db`, gitignored, reseeds on first run).
 - `backend/src/almond/connectors/open_dental.py` — the live connector (auth `ODFHIR <dev>/<customer>`, base `https://api.opendental.com/api/v1`).
 - `backend/CONTRACT.md` — every `/v1` endpoint + shape.
-- `frontend/src/{App,ui,api,ctx}.jsx`, `frontend/src/screens/*`, `frontend/src/styles/*`.
+- `frontend/src/{App,ui,ctx}.tsx`, `frontend/src/{api,types,data}.ts`, `frontend/src/screens/*.tsx`, `frontend/src/styles/*`.
 
 ## Gotchas
 - **Config env prefix is `ALMOND_`** (`config.py`); see `backend/.env.example`. Defaults are the public Open Dental sandbox keys, so it runs with no `.env`.

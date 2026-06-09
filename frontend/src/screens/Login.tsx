@@ -1,16 +1,22 @@
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import { Button, Icon, useToast } from "../ui";
 import { api } from "../api";
 import { DATA } from "../data";
+import type { User } from "../types";
 
-export default function Login({ onSuccess }) {
+export interface LoginProps {
+  onSuccess: (user: User, token: string) => void;
+}
+
+export default function Login({ onSuccess }: LoginProps) {
   const toast = useToast();
   const [email, setEmail] = useState("dana@brightsmile.co");
   const [password, setPassword] = useState("demo1234");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const signIn = async (e) => {
+  const signIn = async (e?: FormEvent) => {
     if (e) e.preventDefault();
     if (!email || !password || busy) return;
     setBusy(true);
@@ -47,14 +53,14 @@ export default function Login({ onSuccess }) {
               <label className="label" htmlFor="auth-email">Email</label>
               <div className="input-wrap">
                 <Icon name="mail" className="lead-ic" />
-                <input id="auth-email" className="input" type="email" autoComplete="username" value={email} onChange={(e) => { setEmail(e.target.value); setError(null); }} placeholder="you@practice.co" />
+                <input id="auth-email" className="input" type="email" autoComplete="username" value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => { setEmail(e.target.value); setError(null); }} placeholder="you@practice.co" />
               </div>
             </div>
             <div className="field">
               <label className="label" htmlFor="auth-password">Password</label>
               <div className="input-wrap">
                 <Icon name="lock" className="lead-ic" />
-                <input id="auth-password" className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(null); }} placeholder="••••••••" />
+                <input id="auth-password" className="input" type="password" autoComplete="current-password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => { setPassword(e.target.value); setError(null); }} placeholder="••••••••" />
               </div>
             </div>
 

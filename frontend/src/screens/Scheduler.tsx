@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
+import type { ChangeEvent } from "react";
 import { Button, Badge, SyncPill, Segmented, Modal, Toggle, useToast, Icon, SkelBlock, ErrorState, EmptyState } from "../ui";
 import { api } from "../api";
+import type { Appointment, Slot, Patient, Provider, Operatory } from "../types";
 
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16];
 const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const fmtHr = (h) => (h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`);
-const TONE = { confirmed: "appt-confirmed", scheduled: "appt-confirmed", unconfirmed: "appt-unconfirmed", arrived: "appt-arrived" };
-const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
+const fmtHr = (h: number) => (h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`);
+const TONE: Record<string, string> = { confirmed: "appt-confirmed", scheduled: "appt-confirmed", unconfirmed: "appt-unconfirmed", arrived: "appt-arrived" };
+const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : "");
 
-const iso = (d) => d.toISOString().slice(0, 10);
-const startOfWeek = (d) => {
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const startOfWeek = (d: Date) => {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
   const day = x.getDay();
@@ -17,34 +19,42 @@ const startOfWeek = (d) => {
   x.setDate(x.getDate() + diff);
   return x;
 };
-const addDays = (d, n) => {
+const addDays = (d: Date, n: number) => {
   const x = new Date(d);
   x.setDate(x.getDate() + n);
   return x;
 };
-const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-const decimalHour = (d) => d.getHours() + d.getMinutes() / 60;
-const durationMin = (a) => {
+const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const decimalHour = (d: Date) => d.getHours() + d.getMinutes() / 60;
+const durationMin = (a: Appointment & { end?: string | null }) => {
   if (a.end) {
-    const ms = new Date(a.end) - new Date(a.start);
+    const ms = new Date(a.end).getTime() - new Date(a.start).getTime();
     if (ms > 0) return Math.round(ms / 60000);
   }
   return 60;
 };
-const status = (a) => (a.status || "confirmed").toLowerCase();
-const timeLabel = (d) => {
+const status = (a: Appointment) => (a.status || "confirmed").toLowerCase();
+const timeLabel = (d: Date) => {
   const hr = d.getHours();
   const min = d.getMinutes();
   return `${hr % 12 === 0 ? 12 : hr % 12}:${min.toString().padStart(2, "0")} ${hr >= 12 ? "PM" : "AM"}`;
 };
-const slotLabel = (s) => timeLabel(new Date(s.start));
+const slotLabel = (s: Slot) => timeLabel(new Date(s.start));
 
-function ApptModal({ appt, onClose, onChanged, providers = [], operatories = [] }) {
+interface ApptModalProps {
+  appt: Appointment | null;
+  onClose: () => void;
+  onChanged?: () => void;
+  providers?: Provider[];
+  operatories?: Operatory[];
+}
+
+function ApptModal({ appt, onClose, onChanged, providers = [], operatories = [] }: ApptModalProps) {
   const toast = useToast();
   if (!appt) return null;
   const start = new Date(appt.start);
   const st = status(appt);
-  const toneMap = { confirmed: "ok", scheduled: "ok", arrived: "apricot", unconfirmed: "warn" };
+  const toneMap: Record<string, string> = { confirmed: "ok", scheduled: "ok", arrived: "apricot", unconfirmed: "warn" };
   const provider = providers.find((p) => p.id === appt.provider_id);
   const operatory = operatories.find((o) => o.id === appt.operatory_id);
   const providerLabel = provider ? (provider.name || provider.abbr || provider.id) : appt.provider_id ? `Provider ${appt.provider_id}` : "—";
@@ -76,8 +86,13 @@ function ApptModal({ appt, onClose, onChanged, providers = [], operatories = [] 
   );
 }
 
-function AvailModal({ open, onClose }) {
-  const [days, setDays] = useState({ Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false });
+interface AvailModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+function AvailModal({ open, onClose }: AvailModalProps) {
+  const [days, setDays] = useState<Record<string, boolean>>({ Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false });
   return (
     <Modal open={open} onClose={onClose} title="Online booking availability" width={520}
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button variant="primary" icon="check" onClick={onClose}>Save availability</Button></>}>
@@ -102,7 +117,17 @@ function AvailModal({ open, onClose }) {
   );
 }
 
-function BookModal({ open, onClose, slots, patients, providers, operatories, onBooked }) {
+interface BookModalProps {
+  open: boolean;
+  onClose: () => void;
+  slots: Slot[];
+  patients: Patient[];
+  providers: Provider[];
+  operatories: Operatory[];
+  onBooked: () => void;
+}
+
+function BookModal({ open, onClose, slots, patients, providers, operatories, onBooked }: BookModalProps) {
   const toast = useToast();
   const [slot, setSlot] = useState("");
   const [patient, setPatient] = useState("");
@@ -131,7 +156,7 @@ function BookModal({ open, onClose, slots, patients, providers, operatories, onB
       await api.bookAppointment({
         patient_id: patient,
         start: chosen.start,
-        operatory_id: operatory || chosen.operatory_id,
+        operatory_id: operatory || chosen.operatory_id || "",
         provider_id: provider || chosen.provider_id,
         reason: reason || undefined,
       });
@@ -160,35 +185,35 @@ function BookModal({ open, onClose, slots, patients, providers, operatories, onB
       <div className="stack" style={{ gap: 14 }}>
         <div className="field">
           <label className="label">Open slot (live availability)</label>
-          <select className="input" value={slot} onChange={(e) => setSlot(e.target.value)}>
+          <select className="input" value={slot} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSlot(e.target.value)}>
             <option value="">Select a slot…</option>
             {slots.map((s, i) => <option key={i} value={i}>{new Date(s.start).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })} · {slotLabel(s)}</option>)}
           </select>
         </div>
         <div className="field">
           <label className="label">Patient (live from Open Dental)</label>
-          <select className="input" value={patient} onChange={(e) => setPatient(e.target.value)}>
+          <select className="input" value={patient} onChange={(e: ChangeEvent<HTMLSelectElement>) => setPatient(e.target.value)}>
             <option value="">Select a patient…</option>
-            {patients.map((p) => <option key={p.id} value={p.id}>{p.first} {p.last} · #{p.id}</option>)}
+            {patients.map((p) => <option key={p.id} value={p.id ?? ""}>{p.first} {p.last} · #{p.id}</option>)}
           </select>
         </div>
         <div className="grid2" style={{ gap: 14 }}>
           <div className="field">
             <label className="label">Provider</label>
-            <select className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
+            <select className="input" value={provider} onChange={(e: ChangeEvent<HTMLSelectElement>) => setProvider(e.target.value)}>
               {providers.map((p) => <option key={p.id} value={p.id}>{p.name || p.abbr || p.id}</option>)}
             </select>
           </div>
           <div className="field">
             <label className="label">Operatory</label>
-            <select className="input" value={operatory} onChange={(e) => setOperatory(e.target.value)}>
+            <select className="input" value={operatory} onChange={(e: ChangeEvent<HTMLSelectElement>) => setOperatory(e.target.value)}>
               {operatories.map((o) => <option key={o.id} value={o.id}>{o.name || o.id}</option>)}
             </select>
           </div>
         </div>
         <div className="field">
           <label className="label">Reason</label>
-          <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Cleaning + exam" />
+          <input className="input" value={reason} onChange={(e: ChangeEvent<HTMLInputElement>) => setReason(e.target.value)} placeholder="Cleaning + exam" />
         </div>
       </div>
     </Modal>
@@ -197,16 +222,16 @@ function BookModal({ open, onClose, slots, patients, providers, operatories, onB
 
 export default function Scheduler() {
   const [view, setView] = useState("week");
-  const [anchor, setAnchor] = useState(() => startOfWeek(new Date()));
-  const [active, setActive] = useState(null);
+  const [anchor, setAnchor] = useState<Date>(() => startOfWeek(new Date()));
+  const [active, setActive] = useState<Appointment | null>(null);
   const [showAvail, setShowAvail] = useState(false);
   const [showBook, setShowBook] = useState(false);
 
-  const [appts, setAppts] = useState([]);
-  const [slots, setSlots] = useState([]);
-  const [patients, setPatients] = useState([]);
-  const [providers, setProviders] = useState([]);
-  const [operatories, setOperatories] = useState([]);
+  const [appts, setAppts] = useState<Appointment[]>([]);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [operatories, setOperatories] = useState<Operatory[]>([]);
   const [phase, setPhase] = useState("loading");
 
   const today = useMemo(() => new Date(), []);
@@ -222,7 +247,7 @@ export default function Scheduler() {
     const end = iso(addDays(rangeEnd, 1));
     Promise.all([
       api.appointmentsRange(start, end),
-      api.availability(start, end, 60).catch(() => []),
+      api.availability(start, end, 60).catch((): Slot[] => []),
     ])
       .then(([a, s]) => { setAppts(a || []); setSlots(s || []); setPhase("ready"); })
       .catch(() => setPhase("error"));
@@ -235,8 +260,8 @@ export default function Scheduler() {
     api.operatories().then((o) => setOperatories(o || [])).catch(() => {});
   }, []);
 
-  const apptsForDay = (d) => appts.filter((a) => sameDay(new Date(a.start), d));
-  const slotsForDay = (d) => slots.filter((s) => sameDay(new Date(s.start), d));
+  const apptsForDay = (d: Date) => appts.filter((a) => sameDay(new Date(a.start), d));
+  const slotsForDay = (d: Date) => slots.filter((s) => sameDay(new Date(s.start), d));
 
   const rangeLabel = sameDay(rangeStart, rangeEnd)
     ? rangeStart.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
@@ -301,7 +326,7 @@ export default function Scheduler() {
                     const sd = new Date(s.start);
                     const top = (decimalHour(sd) - 8) * 56;
                     if (top < 0 || top > (HOURS.length - 1) * 56) return null;
-                    const dur = s.end ? Math.max(30, (new Date(s.end) - sd) / 60000) : 60;
+                    const dur = s.end ? Math.max(30, (new Date(s.end).getTime() - sd.getTime()) / 60000) : 60;
                     const height = (dur / 60) * 56 - 4;
                     return (
                       <button key={`slot-${i}`} className="cal-openslot" style={{ position: "absolute", left: 4, right: 4, top: top + 1, height, borderRadius: 7, border: "1px dashed var(--p-300)", background: "var(--p-25, var(--n-25))", color: "var(--p-600)", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }} onClick={() => setShowBook(true)}>

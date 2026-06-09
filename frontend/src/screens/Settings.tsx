@@ -2,18 +2,35 @@ import { useState, useEffect } from "react";
 import { Button, Badge, SyncPill, Avatar, Toggle, Modal, EmptyState, ErrorState, SkelRows, useToast, Icon } from "../ui";
 import { api } from "../api";
 import { DATA } from "../data";
+import type { Connector, User, AuditEntry } from "../types";
 
-const PMS_COLOR = { "Open Dental": "#2f5d4a", "Twilio SMS": "#c5743c", Denticon: "#3f6d8c", NextGen: "#7a5ea8" };
+const PMS_COLOR: Record<string, string> = { "Open Dental": "#2f5d4a", "Twilio SMS": "#c5743c", Denticon: "#3f6d8c", NextGen: "#7a5ea8" };
 
-const TABS = [
+type TabKey = "connections" | "team" | "branding" | "audit";
+
+interface TabDef {
+  key: TabKey;
+  label: string;
+  icon: string;
+}
+
+const TABS: TabDef[] = [
   { key: "connections", label: "Connect your system", icon: "link" },
   { key: "team", label: "Team & roles", icon: "users" },
   { key: "branding", label: "Branding & hours", icon: "building" },
   { key: "audit", label: "Audit log", icon: "shield" },
 ];
 
-function ConnectModal({ conn, onClose, onConnected }) {
-  const [phase, setPhase] = useState("form");
+type ConnectPhase = "form" | "connecting" | "done";
+
+interface ConnectModalProps {
+  conn: Connector | null;
+  onClose: () => void;
+  onConnected: (conn: Connector) => void;
+}
+
+function ConnectModal({ conn, onClose, onConnected }: ConnectModalProps) {
+  const [phase, setPhase] = useState<ConnectPhase>("form");
   if (!conn) return null;
   return (
     <Modal open onClose={onClose} width={480} title={`Connect ${conn.name}`}
@@ -43,9 +60,9 @@ function ConnectModal({ conn, onClose, onConnected }) {
 }
 
 function ConnectionsTab() {
-  const [conns, setConns] = useState(null);
+  const [conns, setConns] = useState<Connector[] | null>(null);
   const [error, setError] = useState(false);
-  const [connecting, setConnecting] = useState(null);
+  const [connecting, setConnecting] = useState<Connector | null>(null);
 
   const load = () => {
     setError(false);
@@ -76,14 +93,14 @@ function ConnectionsTab() {
           </div>
         ))}
       </div>
-      {connecting && <ConnectModal conn={connecting} onClose={() => setConnecting(null)} onConnected={(c) => setConns((cs) => cs.map((x) => x.name === c.name ? { ...x, status: "connected", detail: "Synced just now" } : x))} />}
+      {connecting && <ConnectModal conn={connecting} onClose={() => setConnecting(null)} onConnected={(c) => setConns((cs) => (cs ?? []).map((x) => x.name === c.name ? { ...x, status: "connected", detail: "Synced just now" } : x))} />}
     </>
   );
 }
 
 function TeamTab() {
   const toast = useToast();
-  const [team, setTeam] = useState(null);
+  const [team, setTeam] = useState<User[] | null>(null);
   const [error, setError] = useState(false);
 
   const load = () => {
@@ -93,7 +110,7 @@ function TeamTab() {
   };
   useEffect(() => { load(); }, []);
 
-  const access = (role) =>
+  const access = (role: string) =>
     role.includes("Admin") || role.includes("Owner") ? "Full + billing + reports"
       : role.includes("Manager") ? "All front office"
         : "Leads, messages, forms";
@@ -157,7 +174,7 @@ function BrandingTab() {
 }
 
 function AuditTab() {
-  const [log, setLog] = useState(null);
+  const [log, setLog] = useState<AuditEntry[] | null>(null);
   const [error, setError] = useState(false);
 
   const load = () => {
@@ -198,7 +215,7 @@ function AuditTab() {
 }
 
 export default function Settings() {
-  const [tab, setTab] = useState("connections");
+  const [tab, setTab] = useState<TabKey>("connections");
 
   return (
     <div className="content">

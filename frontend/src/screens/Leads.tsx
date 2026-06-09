@@ -1,17 +1,27 @@
 import { useState, useEffect } from "react";
 import { Button, Badge, SyncPill, Avatar, Drawer, Segmented, Checkbox, SortTh, Pagination, useToast, Icon } from "../ui";
+import type { SortState } from "../ui";
 import { useNav } from "../ctx";
 import { api } from "../api";
+import type { Lead, LeadStage, Patient } from "../types";
 
-const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : "");
-const STAGE_TONE = { new: "apricot", contacted: "warn", booked: "pine", converted: "ok" };
-const STAGE_COLOR = { new: "var(--a-600)", contacted: "var(--warn)", booked: "var(--p-500)", converted: "var(--ok)" };
-const SOURCE_IC = { "Missed call": "phoneMissed", "Website request": "external", Referral: "users" };
-const STAGES = ["new", "contacted", "booked", "converted"];
+const cap = (s?: string | null): string => (s ? s[0].toUpperCase() + s.slice(1) : "");
+const STAGE_TONE: Record<LeadStage, string> = { new: "apricot", contacted: "warn", booked: "pine", converted: "ok" };
+const STAGE_COLOR: Record<LeadStage, string> = { new: "var(--a-600)", contacted: "var(--warn)", booked: "var(--p-500)", converted: "var(--ok)" };
+const SOURCE_IC: Record<string, string> = { "Missed call": "phoneMissed", "Website request": "external", Referral: "users" };
+const STAGES: LeadStage[] = ["new", "contacted", "booked", "converted"];
 
-function ConvertDrawer({ lead, onClose, onConverted }) {
-  const [phase, setPhase] = useState("idle");
-  const [patnum, setPatnum] = useState(null);
+type ConvertPhase = "idle" | "syncing" | "done" | "failed";
+
+interface ConvertDrawerProps {
+  lead: Lead | undefined;
+  onClose: () => void;
+  onConverted: (patient: Patient) => void;
+}
+
+function ConvertDrawer({ lead, onClose, onConverted }: ConvertDrawerProps) {
+  const [phase, setPhase] = useState<ConvertPhase>("idle");
+  const [patnum, setPatnum] = useState<string | null | undefined>(null);
   useEffect(() => { setPhase("idle"); setPatnum(null); }, [lead && lead.id]);
   if (!lead) return null;
 
@@ -36,7 +46,7 @@ function ConvertDrawer({ lead, onClose, onConverted }) {
       <div className="drawer-body">
         <div className="row" style={{ gap: 8, marginBottom: 18 }}>
           <Badge tone={STAGE_TONE[lead.stage]} dot>{cap(lead.stage)}</Badge>
-          <Badge tone="neutral" icon={SOURCE_IC[lead.source] || "external"}>{lead.source}</Badge>
+          <Badge tone="neutral" icon={SOURCE_IC[lead.source || ""] || "external"}>{lead.source}</Badge>
         </div>
         <div className="stack" style={{ gap: 14 }}>
           <div><div className="eyebrow" style={{ marginBottom: 8 }}>Reason for visit</div><div style={{ fontSize: 15, fontWeight: 500 }}>{lead.reason}</div></div>
@@ -71,28 +81,28 @@ function ConvertDrawer({ lead, onClose, onConverted }) {
 
 export default function Leads() {
   const { params } = useNav();
-  const [view, setView] = useState("list");
-  const [leads, setLeads] = useState([]);
-  const [selected, setSelected] = useState(params.leadId || null);
-  const [checked, setChecked] = useState([]);
-  const [sort, setSort] = useState({ field: "name", dir: "asc" });
+  const [view, setView] = useState<string>("list");
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [selected, setSelected] = useState<string | null>((params.leadId as string | undefined) || null);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [sort, setSort] = useState<SortState>({ field: "name", dir: "asc" });
   const toast = useToast();
 
   const load = () => api.leads().then(setLeads).catch(() => {});
   useEffect(() => { load(); }, []);
 
   const lead = leads.find((l) => l.id === selected);
-  const doSort = (f) => setSort((s) => ({ field: f, dir: s.field === f && s.dir === "asc" ? "desc" : "asc" }));
-  const ORDER = { new: 0, contacted: 1, booked: 2, converted: 3 };
+  const doSort = (f: string) => setSort((s) => ({ field: f, dir: s.field === f && s.dir === "asc" ? "desc" : "asc" }));
+  const ORDER: Record<LeadStage, number> = { new: 0, contacted: 1, booked: 2, converted: 3 };
   const sorted = [...leads].sort((a, b) => {
-    let av = a[sort.field], bv = b[sort.field];
+    let av: unknown = a[sort.field as keyof Lead], bv: unknown = b[sort.field as keyof Lead];
     if (sort.field === "stage") { av = ORDER[a.stage]; bv = ORDER[b.stage]; }
     if (sort.field === "value") { av = a.est_value || 0; bv = b.est_value || 0; }
-    if (av < bv) return sort.dir === "asc" ? -1 : 1;
-    if (av > bv) return sort.dir === "asc" ? 1 : -1;
+    if ((av as never) < (bv as never)) return sort.dir === "asc" ? -1 : 1;
+    if ((av as never) > (bv as never)) return sort.dir === "asc" ? 1 : -1;
     return 0;
   });
-  const toggleCheck = (id) => setChecked((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  const toggleCheck = (id: string) => setChecked((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
 
   return (
     <div className="content"><div className="content-wide">
@@ -120,7 +130,7 @@ export default function Leads() {
                 <tr key={l.id} className={checked.includes(l.id) ? "selected" : ""} onClick={() => setSelected(l.id)} style={{ cursor: "pointer" }}>
                   <td onClick={(e) => e.stopPropagation()}><Checkbox checked={checked.includes(l.id)} onChange={() => toggleCheck(l.id)} /></td>
                   <td><div className="row" style={{ gap: 10 }}><Avatar name={l.name} size="sm" /><div><div style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{l.name}</div><div className="muted mono" style={{ fontSize: 12 }}>{l.phone}</div></div></div></td>
-                  <td><span className="row" style={{ gap: 6 }}><Icon name={SOURCE_IC[l.source] || "external"} size={15} style={{ color: "var(--ink-muted)" }} />{l.source}</span></td>
+                  <td><span className="row" style={{ gap: 6 }}><Icon name={SOURCE_IC[l.source || ""] || "external"} size={15} style={{ color: "var(--ink-muted)" }} />{l.source}</span></td>
                   <td className="muted">{l.reason}</td>
                   <td><Badge tone={STAGE_TONE[l.stage]} dot>{cap(l.stage)}</Badge></td>
                   <td className="tnum" style={{ fontWeight: 600 }}>${(l.est_value || 0).toLocaleString()}</td>
@@ -142,7 +152,7 @@ export default function Leads() {
                   <div className="kcard" key={l.id} onClick={() => setSelected(l.id)}>
                     <div className="between" style={{ marginBottom: 5 }}><div className="kc-name">{l.name}</div><Icon name="grip" size={15} style={{ color: "var(--n-300)" }} /></div>
                     <div className="kc-reason">{l.reason}</div>
-                    <div className="kc-foot"><span className="row" style={{ gap: 5, fontSize: 11.5, color: "var(--ink-muted)" }}><Icon name={SOURCE_IC[l.source] || "external"} size={13} />{l.source}</span><span className="tnum" style={{ fontSize: 12, fontWeight: 700, color: "var(--p-600)" }}>${(l.est_value || 0).toLocaleString()}</span></div>
+                    <div className="kc-foot"><span className="row" style={{ gap: 5, fontSize: 11.5, color: "var(--ink-muted)" }}><Icon name={SOURCE_IC[l.source || ""] || "external"} size={13} />{l.source}</span><span className="tnum" style={{ fontSize: 12, fontWeight: 700, color: "var(--p-600)" }}>${(l.est_value || 0).toLocaleString()}</span></div>
                   </div>
                 ))}
               </div>

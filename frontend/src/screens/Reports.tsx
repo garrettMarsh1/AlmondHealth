@@ -1,10 +1,17 @@
 import { useState, useEffect } from "react";
 import { Button, Badge, Segmented, Icon, SkelCards, SkelBlock, ErrorState, EmptyState } from "../ui";
 import { api } from "../api";
+import type { ReportsOverview, ReportKpi } from "../types";
 
-const RANGES = { "7": "Last 7 days", "30": "Last 30 days", "90": "Last 90 days" };
+const RANGES: Record<string, string> = { "7": "Last 7 days", "30": "Last 30 days", "90": "Last 90 days" };
 
-function BarChart({ data }) {
+type Status = "loading" | "ready" | "error";
+
+interface BarChartProps {
+  data: number[];
+}
+
+function BarChart({ data }: BarChartProps) {
   const max = Math.max(...data, 1);
   const W = 560, H = 200, pad = 24, bw = (W - pad * 2) / data.length;
   const months = ["Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"];
@@ -32,11 +39,11 @@ function BarChart({ data }) {
 }
 
 export default function Reports() {
-  const [range, setRange] = useState("30");
-  const [data, setData] = useState(null);
-  const [status, setStatus] = useState("loading");
+  const [range, setRange] = useState<string>("30");
+  const [data, setData] = useState<ReportsOverview | null>(null);
+  const [status, setStatus] = useState<Status>("loading");
 
-  const load = (r) => {
+  const load = (r: string) => {
     setStatus("loading");
     api.reportsOverview(RANGES[r])
       .then((res) => { setData(res); setStatus("ready"); })
@@ -74,10 +81,10 @@ export default function Reports() {
         {status === "ready" && data && data.kpis && data.kpis.length > 0 && (
           <>
             <div className="statgrid" style={{ marginBottom: 20 }}>
-              {data.kpis.map((k) => (
+              {data.kpis.map((k: ReportKpi) => (
                 <div className="card card-pad statcard" key={k.label} style={{ cursor: "default" }}>
                   <div className="statcard-top">
-                    <span className="statcard-ic" style={k.icon === "dollar" ? { background: "var(--a-50)", color: "var(--a-700)" } : null}><Icon name={k.icon} size={18} /></span>
+                    <span className="statcard-ic" style={k.icon === "dollar" ? { background: "var(--a-50)", color: "var(--a-700)" } : undefined}><Icon name={k.icon} size={18} /></span>
                     {k.delta && <span className={`statcard-delta ${k.good ? "up" : "down"}`}><Icon name={k.good ? "arrowUp" : "arrowDown"} size={12} />{k.delta}</span>}
                   </div>
                   <div className="statcard-val tnum">{k.value}</div>
@@ -111,7 +118,7 @@ export default function Reports() {
                 <div className="card">
                   <div className="card-head"><div className="card-title" style={{ fontSize: 15 }}>Where revenue came from</div></div>
                   <div>
-                    {[["New patients (recovered calls)", "$22,400", 58], ["New patients (web requests)", "$14,800", 38], ["Reactivated / whitening", "$11,000", 28]].map(([label, amt, pct]) => (
+                    {([["New patients (recovered calls)", "$22,400", 58], ["New patients (web requests)", "$14,800", 38], ["Reactivated / whitening", "$11,000", 28]] as Array<[string, string, number]>).map(([label, amt, pct]) => (
                       <div key={label} style={{ padding: "13px 18px", borderBottom: "1px solid var(--line)" }}>
                         <div className="between" style={{ marginBottom: 7 }}><span style={{ fontSize: 13.5, fontWeight: 500 }}>{label}</span><span className="tnum" style={{ fontWeight: 700 }}>{amt}</span></div>
                         <div style={{ height: 7, background: "var(--n-100)", borderRadius: 99 }}><div style={{ width: pct + "%", height: "100%", background: "var(--p-400)", borderRadius: 99 }} /></div>

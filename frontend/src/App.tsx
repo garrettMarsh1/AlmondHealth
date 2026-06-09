@@ -1,23 +1,36 @@
 import { useState, useEffect } from "react";
+import type { ComponentType } from "react";
 import { Icon, Avatar, SyncPill, ToastProvider, EmptyState } from "./ui";
 import { NavProvider } from "./ctx";
 import { DATA } from "./data";
 import { setToken as persistToken } from "./api";
-import Login from "./screens/Login.jsx";
-import Today from "./screens/Today.jsx";
-import Leads from "./screens/Leads.jsx";
-import SendForm from "./screens/SendForm.jsx";
-import Scheduler from "./screens/Scheduler.jsx";
-import Reports from "./screens/Reports.jsx";
-import Forms from "./screens/Forms.jsx";
-import PatientTimeline from "./screens/PatientTimeline.jsx";
-import Messages from "./screens/Messages.jsx";
-import Settings from "./screens/Settings.jsx";
-import Onboarding from "./screens/Onboarding.jsx";
-import PatientForm from "./screens/PatientForm.jsx";
-import PatientBooking from "./screens/PatientBooking.jsx";
+import type { User } from "./types";
+import Login from "./screens/Login";
+import Today from "./screens/Today";
+import Leads from "./screens/Leads";
+import SendForm from "./screens/SendForm";
+import Scheduler from "./screens/Scheduler";
+import Reports from "./screens/Reports";
+import Forms from "./screens/Forms";
+import PatientTimeline from "./screens/PatientTimeline";
+import Messages from "./screens/Messages";
+import Settings from "./screens/Settings";
+import Onboarding from "./screens/Onboarding";
+import PatientForm from "./screens/PatientForm";
+import PatientBooking from "./screens/PatientBooking";
 
-const FRONT_OFFICE = {
+interface NavItem {
+  key: string;
+  label: string;
+  icon: string;
+}
+
+interface NavSection {
+  section: string;
+  items: NavItem[];
+}
+
+const FRONT_OFFICE: NavSection = {
   section: "Front office",
   items: [
     { key: "today", label: "Today", icon: "today" },
@@ -27,7 +40,7 @@ const FRONT_OFFICE = {
   ],
 };
 
-const RECORDS = {
+const RECORDS: NavSection = {
   section: "Records",
   items: [
     { key: "forms", label: "Forms", icon: "forms" },
@@ -36,7 +49,7 @@ const RECORDS = {
   ],
 };
 
-const OWNER = {
+const OWNER: NavSection = {
   section: "Owner",
   items: [
     { key: "reports", label: "Reports & ROI", icon: "reports" },
@@ -44,38 +57,42 @@ const OWNER = {
   ],
 };
 
-const TITLES = {
+const TITLES: Record<string, string> = {
   today: "Today", leads: "Leads & calls", scheduler: "Scheduler", messages: "Messages",
   forms: "Forms", sendform: "Send a form", patient: "Patient timeline",
   reports: "Reports & ROI", settings: "Settings", onboarding: "Set up Almond",
 };
 
-const SCREENS = {
+const SCREENS: Record<string, ComponentType> = {
   today: Today, leads: Leads, scheduler: Scheduler, messages: Messages,
   forms: Forms, sendform: SendForm, patient: PatientTimeline,
   reports: Reports, settings: Settings, onboarding: Onboarding,
 };
 
-const LIVE = new Set([
+const LIVE = new Set<string>([
   "today", "leads", "scheduler", "messages",
   "forms", "sendform", "patient", "reports", "settings",
 ]);
 
-const isOwner = (user) => {
+const isOwner = (user: User | null): boolean => {
   const role = (user?.role || "").toLowerCase();
   return role.includes("owner") || role.includes("admin");
 };
 
-function readStoredUser() {
+function readStoredUser(): User | null {
   try {
     const raw = localStorage.getItem("pb_user");
-    return raw ? JSON.parse(raw) : null;
+    return raw ? (JSON.parse(raw) as User) : null;
   } catch {
     return null;
   }
 }
 
-function Placeholder({ title }) {
+interface PlaceholderProps {
+  title: string;
+}
+
+function Placeholder({ title }: PlaceholderProps) {
   return (
     <div className="content"><div className="content-wide">
       <div className="page-head"><h1>{title}</h1><div className="ph-sub">Designed in the prototype — next to wire to /v1. Today, Leads &amp; calls, and Send a form are already live to Open Dental.</div></div>
@@ -84,22 +101,31 @@ function Placeholder({ title }) {
   );
 }
 
-function PatientRoute({ hash }) {
+interface PatientRouteProps {
+  hash: string;
+}
+
+function PatientRoute({ hash }: PatientRouteProps) {
   if (hash.startsWith("#p/form/")) return <PatientForm />;
   if (hash.startsWith("#p/book")) return <PatientBooking />;
   return null;
 }
 
-function Shell({ user, onSignOut }) {
+interface ShellProps {
+  user: User | null;
+  onSignOut: () => void;
+}
+
+function Shell({ user, onSignOut }: ShellProps) {
   const owner = isOwner(user);
   const nav = owner ? [FRONT_OFFICE, RECORDS, OWNER] : [FRONT_OFFICE, RECORDS];
 
   const initial = (location.hash || "#today").slice(1);
   const [route, setRoute] = useState(SCREENS[initial] ? initial : "today");
-  const [params, setParams] = useState({});
+  const [params, setParams] = useState<Record<string, unknown>>({});
   const [userMenu, setUserMenu] = useState(false);
-  const navigate = (key, p = {}) => { setRoute(key); setParams(p); location.hash = key; window.scrollTo(0, 0); };
-  const Screen = SCREENS[route] || (() => <Placeholder title={TITLES[route] || "Screen"} />);
+  const navigate = (key: string, p: Record<string, unknown> = {}) => { setRoute(key); setParams(p); location.hash = key; window.scrollTo(0, 0); };
+  const Screen: ComponentType = SCREENS[route] || (() => <Placeholder title={TITLES[route] || "Screen"} />);
 
   if (route === "onboarding") {
     return (
@@ -167,8 +193,8 @@ function Shell({ user, onSignOut }) {
 
 export default function App() {
   const [hash, setHash] = useState(location.hash || "");
-  const [user, setUser] = useState(readStoredUser);
-  const [token, setTokenState] = useState(() => localStorage.getItem("pb_token"));
+  const [user, setUser] = useState<User | null>(readStoredUser);
+  const [token, setTokenState] = useState<string | null>(() => localStorage.getItem("pb_token"));
 
   useEffect(() => {
     const onHash = () => setHash(location.hash || "");
@@ -180,7 +206,7 @@ export default function App() {
 
   if (isPatientRoute) return <PatientRoute hash={hash} />;
 
-  const onSuccess = (u, t) => {
+  const onSuccess = (u: User, t: string) => {
     persistToken(t);
     try { localStorage.setItem("pb_user", JSON.stringify(u || {})); } catch {}
     setUser(u);

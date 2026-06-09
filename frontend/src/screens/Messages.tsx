@@ -1,37 +1,50 @@
 import { useState, useRef, useEffect } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import { Button, Badge, Avatar, useToast, Icon, SkelRows, SkelBlock, EmptyState, ErrorState } from "../ui";
 import { useNav } from "../ctx";
 import { api } from "../api";
 import { DATA } from "../data";
+import type { Conversation, Message } from "../types";
 
-const fromOf = (m) => (m.direction === "out" ? "us" : m.direction === "system" ? "system" : "them");
+type MessageSide = "us" | "system" | "them";
 
-const humanizeTime = (value) => {
+const fromOf = (m: Message): MessageSide =>
+  m.direction === "out" ? "us" : m.direction === "system" ? "system" : "them";
+
+const humanizeTime = (value: string | null | undefined): string => {
   if (value == null || value === "") return "";
   const str = String(value).trim();
   if (!/\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(str)) return str;
   const d = new Date(str);
   if (isNaN(d.getTime())) return str;
   const now = new Date();
-  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const dayDiff = Math.round((startOf(now) - startOf(d)) / 86400000);
   if (dayDiff === 0) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   if (dayDiff === 1) return "Yesterday";
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 };
 
+type ListState = "loading" | "ready" | "empty" | "error";
+type ThreadState = "idle" | "loading" | "ready" | "error";
+
+interface SmsTemplate {
+  name: string;
+  body: string;
+}
+
 export default function Messages() {
   const { params, navigate } = useNav();
   const toast = useToast();
-  const [convos, setConvos] = useState([]);
-  const [activeId, setActiveId] = useState(params.convId || null);
-  const [active, setActive] = useState(null);
-  const [listState, setListState] = useState("loading");
-  const [threadState, setThreadState] = useState("idle");
+  const [convos, setConvos] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>((params.convId as string) || null);
+  const [active, setActive] = useState<Conversation | null>(null);
+  const [listState, setListState] = useState<ListState>("loading");
+  const [threadState, setThreadState] = useState<ThreadState>("idle");
   const [draft, setDraft] = useState("");
   const [showTpl, setShowTpl] = useState(false);
   const [sending, setSending] = useState(false);
-  const bodyRef = useRef(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const loadList = () => {
     setListState("loading");
@@ -45,7 +58,7 @@ export default function Messages() {
   };
   useEffect(() => { loadList(); }, []);
 
-  const loadThread = (id) => {
+  const loadThread = (id: string | null) => {
     if (!id) return;
     setThreadState("loading");
     api.conversation(id)
@@ -77,7 +90,7 @@ export default function Messages() {
       .finally(() => setSending(false));
   };
 
-  const useTemplate = (t) => {
+  const useTemplate = (t: SmsTemplate) => {
     const name = active && active.name ? active.name.split(" ")[0] : "";
     setDraft(t.body.replace("{{first_name}}", name).replace("{{practice}}", DATA.practice.name).replace("{{phone}}", DATA.practice.phone));
     setShowTpl(false);
@@ -168,7 +181,7 @@ export default function Messages() {
                   <div className="composer-row">
                     <button className="btn-icon btn-secondary" onClick={() => setShowTpl((v) => !v)} title="Templates"><Icon name="zap" /></button>
                     <button className="btn-icon btn-secondary" onClick={() => toast({ title: "Reminder scheduled", desc: "Will send tomorrow 9:00 AM", icon: "clock" })} title="Schedule reminder"><Icon name="clock" /></button>
-                    <textarea className="textarea" style={{ minHeight: 44, height: 44, flex: 1, padding: "11px 13px" }} placeholder="Write a message…" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
+                    <textarea className="textarea" style={{ minHeight: 44, height: 44, flex: 1, padding: "11px 13px" }} placeholder="Write a message…" value={draft} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setDraft(e.target.value)} onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }} />
                     <Button variant="primary" icon="send" loading={sending} onClick={send}>Send</Button>
                   </div>
                   <div className="row" style={{ justifyContent: "space-between", fontSize: 11.5, color: "var(--ink-muted)" }}>

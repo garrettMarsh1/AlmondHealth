@@ -29,7 +29,7 @@ almond/
 ├─ backend/            FastAPI + SQLite — see backend/README.md and backend/CONTRACT.md
 │  └─ src/almond/       api.py, store.py, db.py, auth.py, notify.py,
 │        routers/ · connectors/ (open_dental ✅, denticon stub)
-└─ frontend/           Vite + React — see frontend/README.md
+└─ frontend/           Vite + React + TypeScript — see frontend/README.md
    └─ src/screens/      Login, Today, Leads, SendForm, Scheduler, Reports, Forms,
                         PatientTimeline, Messages, Settings, Onboarding, PatientForm, PatientBooking
 ```
@@ -61,7 +61,7 @@ Open **http://localhost:5173** and sign in: `dana@brightsmile.co` / `demo1234`.
 - **Scaffolded (need external accounts):** Twilio SMS (records messages unless `ALMOND_TWILIO_*` is set), the **Denticon** connector (stub — needs a Planet DDS single-customer key), and production hosting + BAAs.
 
 ## Tech
-FastAPI · Pydantic v2 · SQLite (stdlib) · httpx · Vite · React 18 · vanilla CSS design tokens.
+FastAPI · Pydantic v2 · SQLite (stdlib) · httpx · Vite · React 18 + TypeScript (strict) · vanilla CSS design tokens.
 
 ## More
 - `backend/README.md` — backend details & run.

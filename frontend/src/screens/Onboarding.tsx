@@ -2,28 +2,29 @@ import { useState, useEffect } from "react";
 import { Icon, Button, Badge, SyncPill, Checkbox, Avatar, SkelRows, ErrorState } from "../ui";
 import { useNav } from "../ctx";
 import { api } from "../api";
+import type { Connector, FormTemplate, User } from "../types";
 
 const STEPS = ["Connect PMS", "Messaging", "Form templates", "Invite staff"];
-const DEFAULT_PMS = [
-  { name: "Open Dental", kind: "PMS", status: "available", detail: "Recommended — quickest to connect" },
-  { name: "Denticon", kind: "PMS", status: "available", detail: "Cloud API" },
-  { name: "NextGen", kind: "EHR", status: "available", detail: "Cloud API" },
+const DEFAULT_PMS: Connector[] = [
+  { name: "Open Dental", kind: "PMS", status: "available", detail: "Recommended — quickest to connect", writes: false },
+  { name: "Denticon", kind: "PMS", status: "available", detail: "Cloud API", writes: false },
+  { name: "NextGen", kind: "EHR", status: "available", detail: "Cloud API", writes: false },
 ];
 
-const fieldCount = (f) => (Array.isArray(f.fields) ? f.fields.length : f.fields || 0);
+const fieldCount = (f: FormTemplate): number => (Array.isArray(f.fields) ? f.fields.length : 0);
 
 export default function Onboarding() {
   const { navigate } = useNav();
   const [step, setStep] = useState(0);
-  const [pms, setPms] = useState(null);
+  const [pms, setPms] = useState<string | null>(null);
   const [pmsConnected, setPmsConnected] = useState(false);
-  const [picked, setPicked] = useState([]);
+  const [picked, setPicked] = useState<string[]>([]);
 
-  const [connectors, setConnectors] = useState(null);
+  const [connectors, setConnectors] = useState<Connector[] | null>(null);
   const [connErr, setConnErr] = useState(false);
-  const [templates, setTemplates] = useState(null);
+  const [templates, setTemplates] = useState<FormTemplate[] | null>(null);
   const [tplErr, setTplErr] = useState(false);
-  const [users, setUsers] = useState(null);
+  const [users, setUsers] = useState<User[] | null>(null);
   const [usersErr, setUsersErr] = useState(false);
 
   const loadConnectors = () => {
@@ -45,7 +46,7 @@ export default function Onboarding() {
   useEffect(() => { loadConnectors(); loadTemplates(); loadUsers(); }, []);
 
   const next = () => (step < 3 ? setStep(step + 1) : navigate("today"));
-  const togglePick = (n) => setPicked((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]));
+  const togglePick = (n: string) => setPicked((p) => (p.includes(n) ? p.filter((x) => x !== n) : [...p, n]));
 
   const pmsOptions = (connectors || []).filter((c) => c.kind === "PMS" || c.kind === "EHR");
   const records = pmsOptions.length ? pmsOptions : DEFAULT_PMS;

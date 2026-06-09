@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { Button, Badge, SyncPill } from "../ui";
 import { api } from "../api";
+import type { FormTemplate, Patient, FormSubmission, FormSubmissionStatus } from "../types";
 
-const STATUS_TONE = { sent: "neutral", opened: "warn", completed: "ok", in_chart: "ok" };
-const STATUS_LABEL = { sent: "Sent", opened: "Opened", completed: "Completed", in_chart: "In chart" };
+const STATUS_TONE: Record<string, string> = { sent: "neutral", opened: "warn", completed: "ok", in_chart: "ok" };
+const STATUS_LABEL: Record<string, string> = { sent: "Sent", opened: "Opened", completed: "Completed", in_chart: "In chart" };
 
 export default function SendForm() {
-  const [templates, setTemplates] = useState([]);
-  const [patients, setPatients] = useState([]);
-  const [recent, setRecent] = useState([]);
+  const [templates, setTemplates] = useState<FormTemplate[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [recent, setRecent] = useState<FormSubmission[]>([]);
   const [tpl, setTpl] = useState("");
   const [recipient, setRecipient] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,7 +28,7 @@ export default function SendForm() {
     try { await api.sendForm(tpl, { patient_id: recipient }); load(); } finally { setBusy(false); }
   };
 
-  const simulate = async (sub) => {
+  const simulate = async (sub: FormSubmission) => {
     if (!sub.link_token) return;
     await api.submitForm(sub.link_token, {
       "Full name": "Demo Patient", "Chief complaint": "cleaning + exam", "Consent to treat": "signed 2026-06-08",
@@ -34,7 +36,7 @@ export default function SendForm() {
     load();
   };
 
-  const tplName = (id) => templates.find((t) => t.id === id)?.name || id;
+  const tplName = (id: string) => templates.find((t) => t.id === id)?.name || id;
 
   return (
     <div className="content"><div className="content-wide">
@@ -45,15 +47,15 @@ export default function SendForm() {
           <div className="card-title" style={{ marginBottom: 16 }}>Choose form &amp; patient</div>
           <div className="field">
             <label className="label">Form</label>
-            <select className="input" value={tpl} onChange={(e) => setTpl(e.target.value)}>
+            <select className="input" value={tpl} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTpl(e.target.value)}>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
           <div className="field" style={{ marginTop: 14 }}>
             <label className="label">Patient (live from Open Dental)</label>
-            <select className="input" value={recipient} onChange={(e) => setRecipient(e.target.value)}>
+            <select className="input" value={recipient} onChange={(e: ChangeEvent<HTMLSelectElement>) => setRecipient(e.target.value)}>
               <option value="">Select a patient…</option>
-              {patients.map((p) => <option key={p.id} value={p.id}>{p.first} {p.last} · #{p.id}</option>)}
+              {patients.map((p) => <option key={p.id} value={p.id ?? ""}>{p.first} {p.last} · #{p.id}</option>)}
             </select>
           </div>
           <Button variant="primary" icon="send" loading={busy} style={{ marginTop: 18 }} onClick={send} disabled={!recipient}>Send secure form link</Button>

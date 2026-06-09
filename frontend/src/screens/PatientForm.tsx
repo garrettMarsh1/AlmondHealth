@@ -1,19 +1,53 @@
 import { useState, useEffect } from "react";
+import type { ChangeEvent } from "react";
 import { Icon, SkelBlock, ErrorState, EmptyState } from "../ui";
 import { api } from "../api";
+import type {
+  FormField,
+  FormFieldType,
+  PublicFormPayload,
+  PublicFormSubmitResult,
+} from "../types";
 
-const tokenFromHash = () => {
+type Phase = "loading" | "empty" | "error" | "ready" | "already";
+
+interface NormalizedField {
+  type: FormFieldType;
+  label: string;
+  required: boolean;
+  options: string[];
+}
+
+interface PracticeInfo {
+  name?: string;
+  location?: string;
+  phone?: string;
+  pms?: string;
+}
+
+interface FormInfo {
+  name?: string;
+  fields?: Array<FormField | string>;
+}
+
+type Step =
+  | { type: "intro" }
+  | { type: "field"; field: NormalizedField; idx: number }
+  | { type: "sign" }
+  | { type: "done" };
+
+const tokenFromHash = (): string => {
   const h = (location.hash || "").replace(/^#/, "");
   const m = h.match(/^p\/form\/(.+)$/);
   return m ? decodeURIComponent(m[1]) : "";
 };
 
-const normalizeField = (f) =>
+const normalizeField = (f: FormField | string): NormalizedField =>
   typeof f === "string"
     ? { type: "text", label: f, required: false, options: [] }
     : { type: f.type || "text", label: f.label || "", required: !!f.required, options: f.options || [] };
 
-const firstName = (s) => (s ? s.trim().split(/\s+/)[0] : "");
+const firstName = (s: string): string => (s ? s.trim().split(/\s+/)[0] : "");
 
 function StatusBar() {
   return (
@@ -25,14 +59,14 @@ function StatusBar() {
 }
 
 export default function PatientForm() {
-  const [token, setToken] = useState(tokenFromHash);
-  const [data, setData] = useState(null);
-  const [phase, setPhase] = useState("loading");
-  const [i, setI] = useState(0);
-  const [val, setVal] = useState({});
-  const [signature, setSignature] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);
+  const [token, setToken] = useState<string>(tokenFromHash);
+  const [data, setData] = useState<PublicFormPayload | null>(null);
+  const [phase, setPhase] = useState<Phase>("loading");
+  const [i, setI] = useState<number>(0);
+  const [val, setVal] = useState<Record<number, string>>({});
+  const [signature, setSignature] = useState<string>("");
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [result, setResult] = useState<PublicFormSubmitResult | null>(null);
 
   useEffect(() => {
     const onHash = () => setToken(tokenFromHash());
@@ -62,7 +96,7 @@ export default function PatientForm() {
     );
   }
 
-  if (phase === "empty" || (phase !== "loading" && !token)) {
+  if (phase === "empty" || !token) {
     return (
       <div className="phone">
         <div className="phone-notch" />
@@ -90,27 +124,27 @@ export default function PatientForm() {
     );
   }
 
-  const practice = data.practice || {};
-  const form = data.form || {};
+  const practice: PracticeInfo = data?.practice || {};
+  const form: FormInfo = data?.form || {};
   const logo = (practice.name || "B").trim()[0] || "B";
   const fields = (form.fields || []).map(normalizeField).filter((f) => f.type !== "section" && f.type !== "signature");
   const hasSignature = (form.fields || []).map(normalizeField).some((f) => f.type === "signature");
   const greetName = firstName(val[fields.findIndex((f) => /name/i.test(f.label))] ?? "");
 
-  const STEPS = [
+  const STEPS: Step[] = [
     { type: "intro" },
-    ...fields.map((f, idx) => ({ type: "field", field: f, idx })),
-    ...(hasSignature ? [{ type: "sign" }] : []),
+    ...fields.map((f, idx): Step => ({ type: "field", field: f, idx })),
+    ...(hasSignature ? [{ type: "sign" } as Step] : []),
     { type: "done" },
   ];
   const cur = STEPS[i];
   const pct = (i / (STEPS.length - 1)) * 100;
-  const set = (k, v) => setVal((x) => ({ ...x, [k]: v }));
+  const set = (k: number, v: string) => setVal((x) => ({ ...x, [k]: v }));
 
   const submit = async () => {
     setSubmitting(true);
     try {
-      const answers = {};
+      const answers: Record<string, string> = {};
       fields.forEach((f, idx) => { if (val[idx] != null && val[idx] !== "") answers[f.label] = val[idx]; });
       if (hasSignature) {
         const sigField = (form.fields || []).map(normalizeField).find((f) => f.type === "signature");
@@ -138,7 +172,7 @@ export default function PatientForm() {
     (cur.type === "field" && !fieldComplete) ||
     submitting;
 
-  const renderField = (f, idx) => {
+  const renderField = (f: NormalizedField, idx: number) => {
     if (f.type === "choice" || f.type === "yesno") {
       const opts = f.type === "yesno" ? ["Yes", "No"] : (f.options && f.options.length ? f.options : ["Yes", "No"]);
       return opts.map((o) => (
@@ -148,9 +182,9 @@ export default function PatientForm() {
       ));
     }
     if (f.type === "date") {
-      return <input className="pat-input" type="date" value={val[idx] || ""} onChange={(e) => set(idx, e.target.value)} autoFocus />;
+      return <input className="pat-input" type="date" value={val[idx] || ""} onChange={(e: ChangeEvent<HTMLInputElement>) => set(idx, e.target.value)} autoFocus />;
     }
-    return <input className="pat-input" placeholder="Type your answer" value={val[idx] || ""} onChange={(e) => set(idx, e.target.value)} autoFocus />;
+    return <input className="pat-input" placeholder="Type your answer" value={val[idx] || ""} onChange={(e: ChangeEvent<HTMLInputElement>) => set(idx, e.target.value)} autoFocus />;
   };
 
   const showHeaderMeta = i > 0 && cur.type !== "done";
